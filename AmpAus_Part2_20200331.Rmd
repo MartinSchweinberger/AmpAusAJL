@@ -148,15 +148,6 @@ p1 <- ggplot(pd1, aes(x = reorder(Age, desc(Age)), y = Percent, group = Variant,
 p1
 ```
 
-WARNING: DATA REDUCTION
-
-```{r ampause_02_13, echo=T, eval = T, message=FALSE, warning=FALSE}
-# recode adjectives
-#ntfrqadj <- names(table(ampaus$Adjective))[which(table(ampaus$Adjective) <= 10)]
-#ampaus <- ampaus %>%
-#  dplyr::mutate(Adjective = ifelse(Adjective %in% ntfrqadj, "other", Adjective))
-```
-
 ```{r ampause_02_15, echo=T, eval = T, message=FALSE, warning=FALSE}
 ldampaus <- ampaus %>%
   dplyr::select(Age, Variant, Adjective) %>%

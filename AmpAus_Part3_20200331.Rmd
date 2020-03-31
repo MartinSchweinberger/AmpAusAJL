@@ -36,10 +36,11 @@ In a next step, we clean the data by removing data points not from private dialo
 ```{r ampause_03_03, echo=T, eval = T, message=FALSE, warning=FALSE}
 # clean data
 reallyaus <- reallyaus %>%
+  dplyr::select(-Age) %>%
   dplyr::mutate(Gender = as.factor(Gender),
                 Adjective = as.factor(Adjective),
                 really = as.numeric(really),
-                Age = as.factor(Age),
+                Age = AgeNumeric,
                 AudienceSize = as.factor(AudienceSize),
                 ConversationType = as.factor(ConversationType),
                 Gender = as.factor(Gender),
@@ -50,7 +51,8 @@ reallyaus <- reallyaus %>%
                 Gradability = as.numeric(Gradability),
                 Occupation = as.factor(Occupation),
                 FileSpeaker = as.factor(FileSpeaker),
-                really = as.factor(really))
+                really = as.factor(really)) %>%
+  dplyr::select(-AgeNumeric)
 # only complete cases
 reallyaus <- reallyaus[complete.cases(reallyaus),]
 # inpsect data
@@ -121,7 +123,7 @@ Next, we remove those variables that were confirmed as being non-important and p
 
 ```{r ampause_03_19, echo=T, eval = T, message=FALSE, warning=FALSE}
 # create vector of variables deemed not important
-rejected <- names(boruta.ampaus$finalDecision)[which(boruta.ampaus$finalDecision == "Rejected")]
+rejected <- names(boruta.ampaus$finalDecision)[which(boruta.ampaus$finalDecision != "Confirmed")]
 # update data for boruta
 borutadata <- borutadata %>%
   dplyr::select(-rejected)
@@ -143,14 +145,14 @@ We now create a visualization of the results that is fit for publication.
 png("images/BorutaAmpAusE_publication.png",  width = 1500, height = 750)
 par(mar = c(18, 8, 4, 2) + 0.1)
 plot(boruta.ampaus, cex.axis=2, las=2, xlab="", ylab = "", cex = 2, 
-     col = c(rep("grey50", 6), rep("grey90",3)))
+     col = c(rep("grey50", 5), rep("grey90",3)))
 abline(v = 3.5, lty = "dashed")
 mtext("Predictors", 1, line = 16, at = 7, cex = 3)
 mtext("Control", 1, line = 16, at = 2, cex = 3)
 mtext("Importance", 2, line = 2.5, at = 5, cex = 3, las = 0)
 dev.off()
 plot(boruta.ampaus, cex.axis=2, las=2, xlab="", ylab = "", cex = 2, 
-     col = c(rep("grey50", 6), rep("grey90",3)))
+     col = c(rep("grey50", 5), rep("grey90",3)))
 abline(v = 3.5, lty = "dashed")
 mtext("Predictors", 1, line = 16, at = 7, cex = 3)
 mtext("Control", 1, line = 16, at = 2, cex = 3)
@@ -208,17 +210,18 @@ m0.glmer <- glmer(really ~ 1 + (1|FileSpeaker)+ (1|Adjective),
                   family = binomial, 
                   data = reallyaus, 
                   control=glmerControl(optimizer="bobyqa"))
-# add Frequency
-m1.glm <- update(m0.glm, .~.+Frequency)
-m1.glmer <- update(m0.glmer, .~.+Frequency)
+# add Age
+m1.glm <- update(m0.glm, .~.+Age)
+m1.glmer <- update(m0.glmer, .~.+Age)
 anova(m1.glmer, m0.glmer, test = "Chi")
 Anova(m1.glmer, type = "III", test = "Chi")
 ```
 
-As Frequency is significant and because including Frequency causes both a drop in AIC and BIC, we retain it in the model and proceed by adding Gender.
+As Age is significant and because including Age causes both a drop in AIC and BIC, we retain it in the model and proceed by adding Gender.
 
 ```{r ampause_03_31, echo=T, eval = T, message=FALSE, warning=FALSE}
 # add Gender
+ifelse(min(ftable(reallyaus$Gender, reallyaus$really)) == 0, "not possible", "possible")
 m2.glm <- update(m1.glm, .~.+ Gender)
 vif(m2.glm)
 m2.glmer <- update(m1.glmer, .~.+ Gender)
@@ -226,145 +229,101 @@ anova(m2.glmer, m1.glmer, test = "Chi")
 Anova(m2.glmer, type = "III", test = "Chi")
 ```
 
-As Gender is significant and because its inclusion in the model causes a drop in both AIC and BIC, we retain it in the model and proceed by adding Age.
+As Gender is significant and because its inclusion in the model causes a drop in both AIC and BIC, we retain it in the model and proceed by adding Frequency.
 
 ```{r ampause_03_33, echo=T, eval = T, message=FALSE, warning=FALSE}
-# add Age
-ifelse(min(ftable(reallyaus$Age, reallyaus$really)) == 0, "not possible", "possible")
-m3.glm <- update(m2.glm, .~.+ Age)
+# add Frequency
+m3.glm <- update(m2.glm, .~.+ Frequency)
 vif(m3.glm)
-m3.glmer <- update(m2.glmer, .~.+ Age)
+m3.glmer <- update(m2.glmer, .~.+ Frequency)
 anova(m3.glmer, m2.glmer, test = "Chi")
 Anova(m3.glmer, type = "III", test = "Chi")
 ```
 
-As Age is significant and because its inclusion in the model causes a drop in AIC and only a minor increase in BIC, we retain it in the model and proceed by adding ConversationType.
+As Frequency is significant and because its inclusion in the model causes a drop in AIC and only a minor increase in BIC, we retain it in the model and proceed by adding Priming.
 
 ```{r ampause_03_35, echo=T, eval = T, message=FALSE, warning=FALSE}
-# add ConversationType
-ifelse(min(ftable(reallyaus$ConversationType, reallyaus$really)) == 0, "not possible", "possible")
-m4.glm <- update(m3.glm, .~.+ ConversationType)
+# add Priming
+ifelse(min(ftable(reallyaus$Priming, reallyaus$really)) == 0, "not possible", "possible")
+m4.glm <- update(m3.glm, .~.+ Priming)
 vif(m4.glm)
-m4.glmer <- update(m3.glmer, .~.+ ConversationType)
+m4.glmer <- update(m3.glmer, .~.+ Priming)
 anova(m4.glmer, m3.glmer, test = "Chi") 
 Anova(m4.glmer, type = "III", test = "Chi")
 ```
 
-As ConversationType is only marginally significant, we do not retain it in the model and proceed by adding AudienceSize.
-
-```{r ampause_03_36, echo=T, eval = T, message=FALSE, warning=FALSE}
-# add AudienceSize
-ifelse(min(ftable(reallyaus$AudienceSize, reallyaus$really)) == 0, "not possible", "possible")
-m5.glm <- update(m3.glm, .~.+ AudienceSize)
-vif(m5.glm)
-m5.glmer <- update(m3.glmer, .~.+ AudienceSize)
-anova(m5.glmer, m3.glmer, test = "Chi") 
-```
-
-As AudienceSize is not significant, we do not retain it in the model and proceed by adding all possible two-way interactions. In a first step, we determine which two-way interactions are possible.
+As ConversationType is only marginally significant, we do not retain it in the model and proceed by adding all possible two-way interactions. In a first step, we determine which two-way interactions are possible.
 
 ```{r ampause_03_39, echo=T, eval = T, message=FALSE, warning=FALSE}
 # find all 2-way interactions
 library(utils)
-vars <- c("Frequency", "Gender", "Age", "ConversationType", "AudienceSize")
+vars <- c("Age", "Gender", "Frequency", "Priming")
 intac <- t(combn(vars, 2))
 intac
 ```
 
-We begin by adding the interaction between Frequency and Gender.
+We begin by adding the interaction between Age and Gender.
 
 ```{r ampause_03_41, echo=T, eval = T, message=FALSE, warning=FALSE}
-# add Frequency*Gender
-m6.glm <- update(m3.glm, .~.+ Frequency*Gender)
-vif(m6.glm)
-m6.glmer <- update(m3.glmer, .~.+ Frequency*Gender)
-anova(m6.glmer, m3.glmer, test = "Chi") 
+# add Age*Gender
+m5.glm <- update(m4.glm, .~.+ Frequency*Gender)
+vif(m5.glm)
+m5.glmer <- update(m4.glmer, .~.+ Frequency*Gender)
+anova(m5.glmer, m4.glmer, test = "Chi") 
 ```
 
-As the interaction between Frequency and Gender is not significant, we do not retain it in the model and continue by adding the interaction between Frequency and Age.
+As the interaction between Age and Gender is not significant, we do not retain it in the model and continue by adding the interaction between Age and Frequency.
 
 ```{r ampause_03_43, echo=T, eval = T, message=FALSE, warning=FALSE}
-# add Frequency*Age
-m7.glm <- update(m3.glm, .~.+ Frequency*Age)
-vif(m7.glm)
-m7.glmer <- update(m3.glmer, .~.+ Frequency*Age)
-anova(m7.glmer, m3.glmer, test = "Chi") 
+# add Age*Frequency
+m6.glm <- update(m4.glm, .~.+ Age*Frequency)
+vif(m6.glm)
+m6.glmer <- update(m4.glmer, .~.+ Age*Frequency)
+anova(m6.glmer, m4.glmer, test = "Chi")
+Anova(m6.glmer, type = "III", test = "Chi")
 ```
 
-As including the interaction between Frequency and Age is not significant, we do not retain it in the model and continue by adding the interaction between Frequency and ConversationType.
+As including the interaction between Age and Frequency is only marginally significant, we do not retain it in the model and continue by adding the interaction between Age and Priming.
 
 ```{r ampause_03_45, echo=T, eval = T, message=FALSE, warning=FALSE}
-# add Frequency*ConversationType
-m8.glm <- update(m3.glm, .~.+ Frequency*ConversationType)
-vif(m8.glm)
-m8.glmer <- update(m3.glmer, .~.+ Frequency*ConversationType)
-anova(m8.glmer, m3.glmer, test = "Chi")
-Anova(m8.glmer, type = "III", test = "Chi")
+# add Age*Priming
+m7.glm <- update(m4.glm, .~.+ Age*Priming)
+vif(m7.glm)
+m7.glmer <- update(m4.glmer, .~.+ Age*Priming)
+anova(m7.glmer, m4.glmer, test = "Chi")
 ```
 
-As the interaction between Frequency and ConversationType is significant, we retain it in the model and continue by adding the interaction between Frequency and AudienceSize.
+As the interaction between Age and Priming is significant, we retain it in the model and continue by adding the interaction between Gender and Frequency.
 
 ```{r ampause_03_46, echo=T, eval = T, message=FALSE, warning=FALSE}
-# add Frequency*AudienceSize
-m9.glm <- update(m8.glm, .~.+ Frequency*AudienceSize)
-vif(m9.glm)
-m9.glmer <- update(m8.glmer, .~.+ Frequency*AudienceSize)
-anova(m9.glmer, m8.glmer, test = "Chi") 
+# add Gender*Frequency
+m8.glm <- update(m4.glm, .~.+ Gender*Frequency)
+vif(m8.glm)
+m8.glmer <- update(m4.glmer, .~.+ Gender*Frequency)
+anova(m8.glmer, m4.glmer, test = "Chi") 
 ```
 
-As the interaction between Frequency and AudienceSize is not significant, we do not retain it in the model and continue by adding the interaction between Frequency and Gender and Age.
+As the interaction between Gender and Frequency is not significant, we do not retain it in the model and continue by adding the interaction between Frequency and Gender and Priming.
 
 ```{r ampause_03_47, echo=T, eval = T, message=FALSE, warning=FALSE}
-# add Gender*Age
-m10.glm <- update(m8.glm, .~.+ Gender*Age)
+# add Gender*Priming
+m9.glm <- update(m4.glm, .~.+ Gender*Priming)
+vif(m9.glm)
+m9.glmer <- update(m4.glmer, .~.+ Gender*Priming)
+anova(m9.glmer, m4.glmer, test = "Chi") 
+```
+
+As including the interaction between Gender and Priming is not significant, we do not retain it in the model and continue by adding the interaction between Frequency and Priming.
+
+```{r ampause_03_49, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Frequency*Priming
+m10.glm <- update(m4.glm, .~.+ Frequency*Priming)
 vif(m10.glm)
-m10.glmer <- update(m8.glmer, .~.+ Gender*Age)
-anova(m10.glmer, m8.glmer, test = "Chi") 
+m10.glmer <- update(m4.glmer, .~.+ Frequency*Priming)
+anova(m10.glmer, m4.glmer, test = "Chi") 
 ```
 
-As including the interaction between Gender and Age is not significant, we do not retain it in the model and continue by adding the interaction between Gender and ConversationType.
-
-```{r ampause_03_49, echo=T, eval = T, message=FALSE, warning=FALSE}
-# add Gender*ConversationType
-m11.glm <- update(m8.glm, .~.+ Gender*ConversationType)
-vif(m11.glm)
-m11.glmer <- update(m8.glmer, .~.+ Gender*ConversationType)
-anova(m11.glmer, m8.glmer, test = "Chi") 
-```
-
-As the interaction between Gender and ConversationType is not significant, we do not retain it in the model and continue by adding the interaction between Gender and AudienceSize.
-
-```{r ampause_03_49, echo=T, eval = T, message=FALSE, warning=FALSE}
-# add Gender*AudienceSize
-m12.glm <- update(m8.glm, .~.+ Gender*AudienceSize)
-vif(m12.glm)
-m12.glmer <- update(m8.glmer, .~.+ Gender*AudienceSize)
-anova(m12.glmer, m8.glmer, test = "Chi") 
-Anova(m12.glmer, type = "III", test = "Chi")
-```
-
-As the interaction between Gender and AudienceSize is not significant, we do not retain it in the model and continue by adding the interaction between Age and ConversationType.
-
-```{r ampause_03_51, echo=T, eval = T, message=FALSE, warning=FALSE}
-# add Age*ConversationType
-m13.glm <- update(m8.glm, .~.+ Age*ConversationType)
-vif(m13.glm)
-m13.glmer <- update(m8.glmer, .~.+ Age*ConversationType)
-anova(m13.glmer, m8.glmer, test = "Chi") 
-```
-
-As the interaction between Age and ConversationType is not significant, we do not retain it in the model and continue by adding the interaction between Age and AudienceSize.
-
-```{r ampause_03_51, echo=T, eval = T, message=FALSE, warning=FALSE}
-# add Age*AudienceSize
-m14.glm <- update(m8.glm, .~.+ Age*AudienceSize)
-vif(m14.glm)
-m14.glmer <- update(m8.glmer, .~.+ Age*AudienceSize)
-anova(m14.glmer, m8.glmer, test = "Chi") 
-Anova(m14.glmer, type = "III", test = "Chi")
-``` 
-
-As the interaction between Age and AudienceSize is not significant, we do not retain it in the model and continue by checking which possible three-way interactions could be included in the model.
+As the interaction between Gender and ConversationType is not significant, we do not retain it in the model and continue by checking which possible three-way interactions could be included in the model.
 
 ```{r ampause_03_57, echo=T, eval = T, message=FALSE, warning=FALSE}
 # find all 3-way interactions
@@ -375,72 +334,55 @@ intac
 In a next step, we create these fixed-effect versions of these models.
 
 ```{r ampause_03_58, echo=T, eval = T, message=FALSE, warning=FALSE}
-m15.glm <- update(m8.glm, .~.+ Frequency*Gender*Age)
-m16.glm <- update(m8.glm, .~.+ Frequency*Gender*ConversationType)
-m17.glm <- update(m8.glm, .~.+ Frequency*Gender*AudienceSize)
-m18.glm <- update(m8.glm, .~.+ Frequency*Age*ConversationType)
-m19.glm <- update(m8.glm, .~.+ Frequency*Age*AudienceSize)
-m20.glm <- update(m8.glm, .~.+ Frequency*ConversationType*AudienceSize)
-m21.glm <- update(m8.glm, .~.+ Gender*Age*ConversationType)
-m22.glm <- update(m8.glm, .~.+ Gender*Age*AudienceSize)
-m23.glm <- update(m8.glm, .~.+ Gender*ConversationType*AudienceSize)
-m24.glm <- update(m8.glm, .~.+ Age*ConversationType*AudienceSize)
+m11.glm <- update(m4.glm, .~.+ Age*Gender*Frequency)
+m12.glm <- update(m4.glm, .~.+ Age*Gender*Priming)
+m13.glm <- update(m4.glm, .~.+ Age*Frequency*Priming)
+m14.glm <- update(m4.glm, .~.+ Gender*Frequency*Priming)
 ```
 
 Now, we test if the vifs for these models is acceptible
 
 ```{r ampause_03_59, echo=T, eval = T, message=FALSE, warning=FALSE}
-max(vif(m15.glm))
-max(vif(m16.glm))
-max(vif(m17.glm))
-max(vif(m18.glm))
-max(vif(m19.glm))
-max(vif(m20.glm))
-max(vif(m21.glm)) # too high
-max(vif(m22.glm)) # too high
-max(vif(m23.glm))
-max(vif(m24.glm))
+max(vif(m11.glm))
+max(vif(m12.glm))
+max(vif(m13.glm))
+max(vif(m14.glm))
 ```
 
 We now create mixed-effect versions of those models, for which the vifs were acceptible.
 
 ```{r ampause_03_61, echo=T, eval = T, message=FALSE, warning=FALSE}
-m15.glmer <- update(m8.glmer, .~.+ Frequency*Gender*Age)
-m16.glmer <- update(m8.glmer, .~.+ Frequency*Gender*ConversationType)
-m17.glmer <- update(m8.glmer, .~.+ Frequency*Gender*AudienceSize)
-m18.glmer <- update(m8.glmer, .~.+ Frequency*Age*ConversationType)
-m19.glmer <- update(m8.glmer, .~.+ Frequency*Age*AudienceSize)
-m20.glmer <- update(m8.glmer, .~.+ Frequency*ConversationType*AudienceSize)
-m23.glmer <- update(m8.glmer, .~.+ Gender*ConversationType*AudienceSize)
-m24.glmer <- update(m8.glmer, .~.+ Age*ConversationType*AudienceSize)
+m11.glmer <- update(m4.glmer, .~.+ Age*Gender*Frequency)
+m12.glmer <- update(m4.glmer, .~.+ Age*Gender*Priming)
+m13.glmer <- update(m4.glmer, .~.+ Age*Frequency*Priming)
+m14.glmer <- update(m4.glmer, .~.+ Gender*Frequency*Priming)
 ```
 
 We now test if the inclusion of any of these interactions is significant.
 
 ```{r ampause_03_63, echo=T, eval = T, message=FALSE, warning=FALSE}
-anova(m15.glmer, m8.glmer, test = "Chi")
+anova(m11.glmer, m4.glmer, test = "Chi")
 ```
 
-As including the interaction Frequency:Gender:Age is not significant, we do not retain it in the model and continue by adding the interaction Frequency:Gender:ConversationType.
+As including the interaction Age:Gender:Frequency is not significant, we do not retain it in the model and continue by adding the interaction Age:Gender:Priming.
 
 ```{r ampause_03_65, echo=T, eval = T, message=FALSE, warning=FALSE}
-anova(m16.glmer, m8.glmer, test = "Chi")
+anova(m12.glmer, m4.glmer, test = "Chi")
 ```
 
-As the interaction Frequency:Gender:ConversationType is not significant, we do not retain it in the model proceed by including the interaction Frequency:Age:ConversationType.
+As the interaction Age:Gender:Priming is not significant, we do not retain it in the model and proceed by including the interaction Age:Frequency:Priming.
 
 ```{r ampause_03_66, echo=T, eval = T, message=FALSE, warning=FALSE}
-anova(m17.glmer, m8.glmer, test = "Chi") 
+anova(m13.glmer, m4.glmer, test = "Chi") 
 ```
 
-As the interaction Frequency:Age:ConversationType is not significant, we do not retain it in the model. 
+As the interaction Age:Frequency:Priming is not significant, we do not retain it in the model and proceed by including the interaction Gender:Frequency:Priming.
 
+```{r ampause_03_66, echo=T, eval = T, message=FALSE, warning=FALSE}
+anova(m14.glmer, m4.glmer, test = "Chi") 
+```
 
-
-
-
-
-We have arrived at our final minimal adequate model. We nor start summarizing this final minimal adequate model.
+As the interaction Gender:Frequency:Priming is not significant, we do not retain it in the model. We have arrived at our final minimal adequate model. We nor start summarizing this final minimal adequate model.
 
 ```{r ampause_03_74, echo=T, eval = T, message=FALSE, warning=FALSE}
 # load function for regression table summary
@@ -467,12 +409,12 @@ We now extract the effects of the significant predictors.
 
 ```{r ampause_03_76, echo=T, eval = T, message=FALSE, warning=FALSE}
 # calculate effects
-effectfrequency <- anova(m1.glmer, m0.glmer, test = "Chi")
+effectage <- anova(m1.glmer, m0.glmer, test = "Chi")
 effectgender <- anova(m2.glmer, m1.glmer, test = "Chi")
-effectage <- anova(m3.glmer, m2.glmer, test = "Chi")
+effectfrequency <- anova(m3.glmer, m2.glmer, test = "Chi")
 effectpriming <- anova(m4.glmer, m3.glmer, test = "Chi")
 # show effects
-effectfrequency; effectgender; effectage; effectpriming
+effectage; effectgender; effectfrequency; effectpriming
 ```
 
 Next, we create a table summarizing the model fitting procedure.
@@ -493,9 +435,10 @@ m10.m4 <- anova(m10.glmer, m4.glmer, test = "Chi")
 m11.m4 <- anova(m11.glmer, m4.glmer, test = "Chi") 
 m12.m4 <- anova(m12.glmer, m4.glmer, test = "Chi") 
 m13.m4 <- anova(m13.glmer, m4.glmer, test = "Chi") 
+m14.m4 <- anova(m14.glmer, m4.glmer, test = "Chi") 
 # create a list of the model comparireallyns
 mdlcmp <- list(m1.m0, m2.m1, m3.m2, m4.m3, m5.m4, m6.m4, m7.m4, m8.m4, 
-               m9.m4, m10.m4, m11.m4, m12.m4, m13.m4)
+               m9.m4, m10.m4, m11.m4, m12.m4, m13.m4, m14.m4)
 # load function
 source("D:\\R/ModelFittingSummarySWSU.R") # for Mixed Effects Model fitting (step-wise step-up): Binary Logistic Mixed Effects Models
 # apply function
@@ -572,18 +515,11 @@ p2 <- ggplot(reallyaus, aes(x = Frequency, y = Prediction)) +
   ggsave(file = paste(imageDirectory,"PredReallyFrequency.png",
                       sep="/"), height = 3,  width = 5, dpi = 320)
 p2
-
 ```
 
 ```{r ampause_03_85, echo=T, eval = T, message=FALSE, warning=FALSE}
-# prepare data
-Agelbs <- names(table(reallyaus$Age))
-pd3 <- reallyaus %>%
-  dplyr::mutate(Age = ifelse(Age == "41-80", 1,
-                             ifelse(Age == "26-40", 2, 3))) %>%
-  dplyr::mutate(Age = as.numeric(Age))
 # start plotting
-p3a <- ggplot(pd3, aes(x = reorder(Age, desc(Age)), y = Prediction)) +
+p3 <- ggplot(pd3, aes(x = Age, y = Prediction)) +
   geom_smooth(aes(y = Prediction, x = Age), 
               colour="black", size=1, se = T, method = "lm") +
   theme_set(theme_light(base_size = 15)) +
@@ -594,43 +530,18 @@ p3a <- ggplot(pd3, aes(x = reorder(Age, desc(Age)), y = Prediction)) +
   coord_cartesian(ylim = c(0, 1)) +
   labs(y = "Predicted probability of really",
        x = "Age") +
-    scale_x_continuous(name = "Age",
-                     breaks = c(1, 2, 3),
-                     labels=rev(Agelbs)) +
   guides(size = FALSE)+
   guides(alpha = FALSE) +
   ggsave(file = paste(imageDirectory,"PredReallyAge.png",
                       sep="/"), height = 3,  width = 5, dpi = 320)
-p3a
-```
-
-```{r ampause_03_87, echo=T, eval = T, message=FALSE, warning=FALSE}
-# start plotting
-p3b <- ggplot(reallyaus, aes(Age, Prediction)) +
-  geom_point(aes(x = Age, y = Prediction), size = NA) +
-  stat_summary(fun.y = mean, geom = "point", size = .5) +
-  stat_summary(fun.y = mean, geom = "line") +
-  stat_summary(fun.data = mean_cl_boot, geom = "errorbar", 
-               width = 0.2, size = 1) +
-  coord_cartesian(ylim = c(0, 1)) +
-  theme_set(theme_light(base_size = 15)) +
-  theme(legend.position="none", 
-        panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank(), 
-        axis.text.x = element_text(size=15)) +
-  labs(x = "Age", y = "Predicted probability of really") +
-  scale_color_manual(values = c("grey30")) +
-  ggsave(file = paste(imageDirectory,"PredReallyAgeCat.png",sep="/"), 
-       height = 5,  width = 5, dpi = 320)
-# show plot
-p3b
+p3
 ```
 
 
 ```{r ampause_03_89, echo=T, eval = T, message=FALSE, warning=FALSE}
 # start plotting
-p4 <- ggplot(reallyaus, aes(ConversationType, Prediction)) +
-  geom_point(aes(x = ConversationType, y = Prediction), size = NA) +
+p4 <- ggplot(reallyaus, aes(Priming, Prediction)) +
+  geom_point(aes(x = Priming, y = Prediction), size = NA) +
   stat_summary(fun.y = mean, geom = "point", size = .5) +
   stat_summary(fun.y = mean, geom = "line") +
   stat_summary(fun.data = mean_cl_boot, geom = "errorbar", 
@@ -641,9 +552,9 @@ p4 <- ggplot(reallyaus, aes(ConversationType, Prediction)) +
         panel.grid.major = element_blank(), 
         panel.grid.minor = element_blank(), 
         axis.text.x = element_text(size=15)) +
-  labs(x = "ConversationType", y = "Predicted probability of really") +
+  labs(x = "Priming", y = "Predicted probability of really") +
   scale_color_manual(values = c("grey30")) +
-  ggsave(file = paste(imageDirectory,"PredReallyConversationType.png",sep="/"), 
+  ggsave(file = paste(imageDirectory,"PredReallyPriming.png",sep="/"), 
        height = 5,  width = 5, dpi = 320)
 # show plot
 p4
@@ -707,10 +618,10 @@ Both effects are in the small range. We now manually set the effects to the weak
 library(simr)
 set.seed(202003206)
 m1p <- m1.glmer
-fixef(m1p)["Frequency"] <- 1.245
-pFrequency <- powerSim(m1p, fixed("Frequency", "lr"), nsim=100)
+fixef(m1p)["Age"] <- 1.245
+pAge <- powerSim(m1p, fixed("Age", "lr"), nsim=100)
 # inspect results
-pFrequency
+pAge
 ```
 
 The power analysis shows that the sample size is fully sufficient to detect the weakest medium effect for Frequency. We continue by checking the pwoer of the sample to detect the weakest medium effect for Gender.
@@ -729,138 +640,114 @@ The power analysis shows that the sample size is fully sufficient to detect the 
 ```{r ampause_03_99, echo=T, eval = T, message=FALSE, warning=FALSE}
 set.seed(202003206)
 m3p <- m3.glmer
-fixef(m3p)["Age26-40"] <- 1.245
-pAge2640 <- powerSim(m3p, fixed("Age", "lr"), nsim=100)
+fixef(m3p)["Frequency"] <- 1.245
+pFrequency <- powerSim(m3p, fixed("Frequency", "lr"), nsim=100)
 # inspect results
-pAge2640
+pFrequency
 ```
 
-The power analysis shows that the sample size is fully sufficient to detect the weakest medium effect for age group 26-40. 
+The power analysis shows that the sample size is fully sufficient to detect the weakest medium effect for age.
 
-
-```{r ampause_03_101, echo=T, eval = T, message=FALSE, warning=FALSE}
-set.seed(202003206)
-m3p <- m3.glmer
-fixef(m3p)["Age41-80"] <- 1.245
-pAge4180 <- powerSim(m3p, fixed("Age", "lr"), nsim=100)
-# inspect results
-pAge4180
-```
-
-
-The power analysis shows that the sample size is fully sufficient to detect the weakest medium effect for age group 41-80. 
-
-We continue by checking the pwoer of the sample to detect the weakest medium effect for ConversationType.
+We continue by checking the power of the sample to detect the weakest medium effect for ConversationType.
 
 ```{r ampause_03_103, echo=T, eval = T, message=FALSE, warning=FALSE}
 set.seed(202003206)
 m4p <- m4.glmer
-fixef(m4p)["ConversationTypePrimed"] <- 1.245
-pConversationType <- powerSim(m4p, fixed("ConversationType", "lr"), nsim=100)
+fixef(m4p)["PrimingPrimed"] <- 1.245
+pPriming <- powerSim(m4p, fixed("Priming", "lr"), nsim=100)
 # inspect results
-pConversationType
+pPriming
 ```
 
-The power analysis shows that the sample size is fully sufficient to detect the weakest medium effect for ConversationType. We continue by checking the pwoer of the sample to detect the weakest medium effect for Frequency:Gender.
+The power analysis shows that the sample size is fully sufficient to detect the weakest medium effect for Priming. We continue by checking the pwoer of the sample to detect the weakest medium effect for Age:Gender.
 
 ```{r ampause_03_105, echo=T, eval = T, message=FALSE, warning=FALSE}
 set.seed(202003206)
 m5p <- m5.glmer
-fixef(m5p)["Frequency:GenderWoman"] <- 1.245
-pFrequencyGender <- powerSim(m5p, fixed("Frequency:Gender", "lr"), nsim=100)
+fixef(m5p)["Age:GenderWoman"] <- 1.245
+pAgeGender <- powerSim(m5p, fixed("Age:Gender", "lr"), nsim=100)
 # inspect results
-pFrequencyGender
+pAgeGender
 ```
 
-The power analysis shows that the sample size is fully sufficient to detect the weakest medium effect for Frequency:Gradability. We continue by checking the pwoer of the sample to detect the weakest medium effect for Frequency:Age2640.
+The power analysis shows that the sample size is fully sufficient to detect the weakest medium effect for Age:Gradability. We continue by checking the pwoer of the sample to detect the weakest medium effect for Frequency:Age2640.
 
 ```{r ampause_03_107, echo=T, eval = T, message=FALSE, warning=FALSE}
 set.seed(202003206)
-m6pa <- m6.glmer
-fixef(m6pa)["Frequency:Age26-40"] <- 1.245
-pFrequencyAge2640 <- powerSim(m6pa, fixed("Frequency:Age", "lr"), nsim=100)
+m6p <- m6.glmer
+fixef(m6p)["Age:Frequency"] <- 1.245
+pAgeFrequency <- powerSim(m6p, fixed("Age:Frequency", "lr"), nsim=100)
 # inspect results
-pFrequencyAge2640
+pAgeFrequency
 ```
 
-The power analysis shows that the sample size is fully sufficient to detect the weakest medium effect for Frequency:Age2640. We continue by checking the pwoer of the sample to detect the weakest medium effect for Frequency:Age41-80.
+The power analysis shows that the sample size is fully sufficient to detect the weakest medium effect for Age:Frequency. We continue by checking the power of the sample to detect the weakest medium effect for Age:Priming.
 
 ```{r ampause_03_109, echo=T, eval = T, message=FALSE, warning=FALSE}
 set.seed(202003206)
-m6pb <- m6.glmer
-fixef(m6pb)["Frequency:Age41-80"] <- 1.245
-pFrequencyAge4180 <- powerSim(m6pb, fixed("Frequency:Age", "lr"), nsim=100)
+m7p <- m7.glmer
+fixef(m7p)["Age:PrimingPrimed"] <- 1.245
+pAgePriming <- powerSim(m7p, fixed("Age:Priming", "lr"), nsim=100)
 # inspect results
-pFrequencyAge4180
+pAgePriming
 ```
 
-The power analysis shows that the sample size is fully sufficient to detect the weakest medium effect for Frequency:Age4180. We continue by checking the pwoer of the sample to detect the weakest medium effect for Gender:Age.
+The power analysis shows that the sample size is fully sufficient to detect the weakest medium effect for Age:Priming. We continue by checking the pwoer of the sample to detect the weakest medium effect for Gender:Frequency.
 
 ```{r ampause_03_111, echo=T, eval = T, message=FALSE, warning=FALSE}
 set.seed(202003206)
-m7p <- m7.glmer
-fixef(m7p)["Frequency:ConversationTypePrimed"] <- 1.245
-pFrequencyConversationType <- powerSim(m7p, fixed("Frequency:ConversationType", "lr"), nsim=100)
+m8p <- m8.glmer
+fixef(m8p)["GenderWoman:Frequency"] <- 1.245
+pGenderFrequency <- powerSim(m8p, fixed("Gender:Frequency", "lr"), nsim=100)
 # inspect results
-pFrequencyConversationType
+pGenderFrequency
 ```
 
-The power analysis shows that the sample size is fully sufficient to detect the weakest medium effect for Frequency:ConversationType. We continue by checking the pwoer of the sample to detect the weakest medium effect for Gender:Age.
+The power analysis shows that the sample size is fully sufficient to detect the weakest medium effect for Gender:Frequency. We continue by checking the pwoer of the sample to detect the weakest medium effect for Gender:Age.
 
 ```{r ampause_03_113, echo=T, eval = T, message=FALSE, warning=FALSE}
 set.seed(202003206)
-m8pa <- m8.glmer
-fixef(m8pa)["GenderWoman:Age26-40"] <- 1.245
-pGenderAge2640 <- powerSim(m8pa, fixed("Gender:Age", "lr"), nsim=100)
+m9p <- m9.glmer
+fixef(m9p)["GenderWoman:PrimingPrimed"] <- 1.245
+pGenderPriming <- powerSim(m9p, fixed("Gender:Priming", "lr"), nsim=100)
 # inspect results
-pGenderAge2640
+pGenderPriming
 ```
 
-The power analysis shows that the sample size is fully sufficient to detect the weakest medium effect for Gender:Age2640. We continue by checking the pwoer of the sample to detect the weakest medium effect for Gender:Age4180.
-
-```{r ampause_03_115, echo=T, eval = T, message=FALSE, warning=FALSE}
-set.seed(202003206)
-m8pb <- m8.glmer
-fixef(m8pb)["GenderWoman:Age41-80"] <- 1.245
-pGenderAge4180 <- powerSim(m8pb, fixed("Gender:Age", "lr"), nsim=100)
-# inspect results
-pGenderAge4180
-```
-
-The power analysis shows that the sample size is fully sufficient to detect the weakest medium effect for Gender:Gradability. We continue by checking the pwoer of the sample to detect the weakest medium effect for Gradability:ConversationType.
+The power analysis shows that the sample size is fully sufficient to detect the weakest medium effect for Gender:Priming. We continue by checking the power of the sample to detect the weakest medium effect for Frequency:Priming.
 
 ```{r ampause_03_117, echo=T, eval = T, message=FALSE, warning=FALSE}
 set.seed(202003206)
-m9p <- m9.glmer
-fixef(m9p)["GenderWoman:ConversationTypePrimed"] <- 1.245
-pGenderConversationType <- powerSim(m9p, fixed("Gender:ConversationType", "lr"), nsim=100)
+m10p <- m10.glmer
+fixef(m10p)["Frequency:PrimingPrimed"] <- 1.245
+pFrequencyPriming <- powerSim(m10p, fixed("Gender:Priming", "lr"), nsim=100)
 # inspect results
-pGenderConversationType
+pFrequencyPriming
 ```
 
-The power analysis shows that the sample size is fully sufficient to detect the weakest medium effect for Gender:ConversationType. We continue by checking the pwoer of the sample to detect the weakest medium effect for Age2640:ConversationType.
+The power analysis shows that the sample size is fully sufficient to detect the weakest medium effect for Frequency:Priming. We continue by checking the pwoer of the sample to detect the weakest medium effect for Age:Gender:Priming.
 
 ```{r ampause_03_119, echo=T, eval = T, message=FALSE, warning=FALSE}
 set.seed(202003206)
-m10pa <- m10.glmer
-fixef(m10pa)["Age26-40:ConversationTypePrimed"] <- 1.245
-pAge2640ConversationType <- powerSim(m10pa, fixed("Age:ConversationType", "lr"), nsim=100)
+m11p <- m11.glmer
+fixef(m11p)["Age:GenderWoman:Frequency"] <- 1.245
+pAgeGenderFrequency <- powerSim(m11p, fixed("Age:Gender:Frequency", "lr"), nsim=100)
 # inspect results
-pAge2640ConversationType
+pAgeGenderFrequency
 ```
 
-The power analysis shows that the sample size is fully sufficient to detect the weakest medium effect for Age2640:ConversationType. We continue by checking the pwoer of the sample to detect the weakest medium effect for Age41-80:ConversationType.
+The power analysis shows that the sample size is fully sufficient to detect the weakest medium effect for Age:Gender:Frequency. We continue by checking the pwoer of the sample to detect the weakest medium effect for Age:Gender:Priming.
 
 ```{r ampause_03_121, echo=T, eval = T, message=FALSE, warning=FALSE}
 set.seed(202003206)
-m10pb <- m10.glmer
-fixef(m10pb)["Age41-80:ConversationTypePrimed"] <- 1.245
-pAge4180ConversationType <- powerSim(m10pb, fixed("Age:ConversationType", "lr"), nsim=100)
+m12p <- m12.glmer
+fixef(m12p)["Age:GenderWoman:PrimingPrimed"] <- 1.245
+pAgeGenderPriming <- powerSim(m12p, fixed("Age:Gender:Priming", "lr"), nsim=100)
 # inspect results
-pAge4180ConversationType
+pAgeGenderPriming
 ```
 
-The power analysis shows that the sample size is fully sufficient to detect the weakest medium effect for Age41-80:ConversationType. We continue by checking the pwoer of the sample to detect the weakest medium effect for Frequency:Gender:Age2640.
+The power analysis shows that the sample size is fully sufficient to detect the weakest medium effect for Age:Gender:Priming. We continue by checking the pwoer of the sample to detect the weakest medium effect for Frequency:Gender:Age2640.
 
 ```{r ampause_03_123, echo=T, eval = T, message=FALSE, warning=FALSE}
 set.seed(202003206)
@@ -893,26 +780,26 @@ pFrequencyGenderConversationType <- powerSim(m12p, fixed("Frequency:Gender:Conve
 pFrequencyGenderConversationType
 ```
 
-The power analysis shows that the sample size is fully sufficient to detect the weakest medium effect for Frequency:Gender:ConversationType. We continue by checking the pwoer of the sample to detect the weakest medium effect for Frequency:Age2640:ConversationType.
+The power analysis shows that the sample size is fully sufficient to detect the weakest medium effect for Frequency:Gender:ConversationType. We continue by checking the pwoer of the sample to detect the weakest medium effect for Age:Frequency:Priming.
 
 ```{r ampause_03_129, echo=T, eval = T, message=FALSE, warning=FALSE}
 set.seed(202003206)
-m13pa <- m13.glmer
-fixef(m13pa)["Frequency:Age26-40:ConversationTypePrimed"] <- 1.245
-pFrequencyAge2640ConversationType <- powerSim(m13pa, fixed("Frequency:Age:ConversationType", "lr"), nsim=100)
+m13p <- m13.glmer
+fixef(m13p)["Age:Frequency:PrimingPrimed"] <- 1.245
+pAgeFrequencyPriming <- powerSim(m13p, fixed("Age:Frequency:Priming", "lr"), nsim=100)
 # inspect results
-pFrequencyAge2640ConversationType
+pAgeFrequencyPriming
 ```
 
-The power analysis shows that the sample size is fully sufficient to detect the weakest medium effect for Frequency:Age2640:ConversationType. We continue by checking the pwoer of the sample to detect the weakest medium effect for Frequency:Age4180:ConversationType.
+The power analysis shows that the sample size is fully sufficient to detect the weakest medium effect for Age:Frequency:Priming. We continue by checking the pwoer of the sample to detect the weakest medium effect for Frequency:Age4180:ConversationType.
 
 ```{r ampause_03_131, echo=T, eval = T, message=FALSE, warning=FALSE}
 set.seed(202003206)
-m13pb <- m13.glmer
-fixef(m13pb)["Frequency:Age41-80:ConversationTypePrimed"] <- 1.245
-pFrequencyAge4180ConversationType <- powerSim(m13pb, fixed("Frequency:Age:ConversationType", "lr"), nsim=100)
+m14p <- m14.glmer
+fixef(m14p)["GenderWoman:Freqeuncy:PrimingPrimed"] <- 1.245
+pGenderFrequencyPriming <- powerSim(m14p, fixed("Gender:Frequency:Priming", "lr"), nsim=100)
 # inspect results
-pFrequencyAge4180ConversationType
+pGenderFrequencyPriming
 ```
 
 The power analysis shows that the sample size is fully sufficient to detect the weakest medium effect for Frequency:Age4180:ConversationType. We have reached the end of part 3 of the analysis.

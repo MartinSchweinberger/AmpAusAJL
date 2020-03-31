@@ -308,6 +308,44 @@ bio <- bio %>%
 bio
 ```
 
+Recode age
+
+```{r ampause_01_15, echo=T, eval = T, message=FALSE, warning=FALSE}
+bio <- bio %>%
+  dplyr::mutate(AgeNumeric = AgeOriginal) %>%
+  dplyr::mutate(AgeNumeric = ifelse(AgeNumeric == "17-22", (17+22)/2, AgeNumeric)) %>%
+  dplyr::mutate(AgeNumeric = ifelse(AgeNumeric == "18-20", (18+20)/2, AgeNumeric)) %>%
+  dplyr::mutate(AgeNumeric = ifelse(AgeNumeric == "18-24", (18+24)/2, AgeNumeric)) %>%
+  dplyr::mutate(AgeNumeric = ifelse(AgeNumeric == "18-25", (18+25)/2, AgeNumeric)) %>%
+  dplyr::mutate(AgeNumeric = ifelse(AgeNumeric == "20-24", (20+24)/2, AgeNumeric)) %>%
+  dplyr::mutate(AgeNumeric = ifelse(AgeNumeric == "20-25", (20+25)/2, AgeNumeric)) %>%
+  dplyr::mutate(AgeNumeric = ifelse(AgeNumeric == "20-30", (20+30)/2, AgeNumeric)) %>%
+  dplyr::mutate(AgeNumeric = ifelse(AgeNumeric == "21-25", (21+25)/2, AgeNumeric)) %>%
+  dplyr::mutate(AgeNumeric = ifelse(AgeNumeric == "25-30", (25+30)/2, AgeNumeric)) %>%
+  dplyr::mutate(AgeNumeric = ifelse(AgeNumeric == "25-35", (25+35)/2, AgeNumeric)) %>%
+  dplyr::mutate(AgeNumeric = ifelse(AgeNumeric == "30-35", (30+35)/2, AgeNumeric)) %>%
+  dplyr::mutate(AgeNumeric = ifelse(AgeNumeric == "30-40", (30+40)/2, AgeNumeric)) %>%
+  dplyr::mutate(AgeNumeric = ifelse(AgeNumeric == "35-40", (35+40)/2, AgeNumeric)) %>%
+  dplyr::mutate(AgeNumeric = ifelse(AgeNumeric == "35-45", (35+45)/2, AgeNumeric)) %>%
+  dplyr::mutate(AgeNumeric = ifelse(AgeNumeric == "40-45", (40+45)/2, AgeNumeric)) %>%
+  dplyr::mutate(AgeNumeric = ifelse(AgeNumeric == "40-50", (40+50)/2, AgeNumeric)) %>%
+  dplyr::mutate(AgeNumeric = ifelse(AgeNumeric == "45-50", (45+50)/2, AgeNumeric)) %>%
+  dplyr::mutate(AgeNumeric = ifelse(AgeNumeric == "45-55", (45+50)/2, AgeNumeric)) %>%
+  dplyr::mutate(AgeNumeric = ifelse(AgeNumeric == "50-55", (50+55)/2, AgeNumeric)) %>%
+  dplyr::mutate(AgeNumeric = ifelse(AgeNumeric == "50-60", (50+60)/2, AgeNumeric)) %>%
+  dplyr::mutate(AgeNumeric = ifelse(AgeNumeric == "55-59", (55+59)/2, AgeNumeric)) %>%
+  dplyr::mutate(AgeNumeric = ifelse(AgeNumeric == "55-60", (55+60)/2, AgeNumeric)) %>%
+  dplyr::mutate(AgeNumeric = ifelse(AgeNumeric == "55-65", (55+65)/2, AgeNumeric)) %>%
+  dplyr::mutate(AgeNumeric = ifelse(AgeNumeric == "60-65", (60+65)/2, AgeNumeric)) %>%
+  dplyr::mutate(AgeNumeric = ifelse(AgeNumeric == "60-70", (60+70)/2, AgeNumeric)) %>%
+  dplyr::mutate(AgeNumeric = ifelse(AgeNumeric == "65-70", (65+70)/2, AgeNumeric)) %>%
+  dplyr::mutate(AgeNumeric = ifelse(AgeNumeric == "65-75", (65+75)/2, AgeNumeric))  %>%
+  dplyr::mutate(AgeNumeric = ifelse(AgeNumeric == "70-80", (70+80)/2, AgeNumeric))%>%
+  dplyr::mutate(AgeNumeric = as.numeric(AgeNumeric))
+str(bio$AgeNumeric)
+str(bio$Age)
+```
+
 Now, we combine the bio data with the condorcande data.
 
 ```{r ampause_01_15, echo=T, eval = T, message=FALSE, warning=FALSE}
