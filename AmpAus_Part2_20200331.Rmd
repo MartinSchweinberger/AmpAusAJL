@@ -1,0 +1,1048 @@
+---
+title: "The Amplifier System of Australian English - Part 3"
+author: "Anonymous"
+date: "`r format(Sys.time(), '%Y-%m-%d')`"
+output:
+  bookdown::html_document2: default
+bibliography: bibliography.bib
+link-citations: yes
+---
+
+This document shows an analysis of adjective amplification in Australian English based on the private dialogue section of ICE Australia. 
+
+In a first step, the session is prepared by clearing the workspace, setting options, activating packages and functions, as well as loading relevant functions and the data.
+
+```{r ampause_02_01, echo=T, eval = T, message=FALSE, warning=FALSE}
+# clean current workspace
+rm(list=ls(all=T))
+# load libraries
+library(Rling)
+library(dplyr)
+library(ggplot2)
+# set options
+options(stringsAsFactors = F)
+options(scipen = 999)
+options(max.print=10000)
+# define image directory
+imageDirectory<-"images"
+# load data
+ampaus <- read.table("datatables/ampaus04_clean.txt", sep = "\t", header = T)
+# inspect data
+str(ampaus)
+```
+
+We will now remove superfluous columns and clean variable levels.
+
+```{r ampause_02_03, echo=T, eval = T, message=FALSE, warning=FALSE}
+# clean data
+ampaus <- ampaus %>%
+  dplyr::mutate(Gender = ifelse(is.na(Gender) == T, NA,
+                                ifelse(Gender == "F", "Woman", "Man"))) %>%
+  dplyr::mutate(Gender = factor(Gender, levels = c("Man",
+                                                   "Woman"))) %>%
+  dplyr::mutate(Priming = ifelse(is.na(Priming) == T, NA,
+                                ifelse(Priming == "NotPrimed", "NotPrimed",
+                                       "Primed"))) %>%
+  dplyr::mutate(Priming = factor(Priming, levels = c("NotPrimed",
+                                                     "Primed"))) %>%
+  dplyr::mutate(Emotionality = factor(Emotionality, levels = c("NonEmotional",
+                                                     "NegativeEmotional",
+                                                     "PositiveEmotional"))) %>%
+  dplyr::mutate(Age = factor(Age, levels = c("17-25",
+                                            "26-40",
+                                            "41-80"))) %>%
+  dplyr::mutate(Occupation = factor(Occupation, levels = c("ACMP", "SML"))) %>%
+  dplyr::mutate(ConversationType = factor(ConversationType, 
+                                         levels = c("MixedGender",
+                                                    "SameGender"))) %>%
+  dplyr::mutate(AudienceSize = ifelse(AudienceSize == "2", "Dyad", "Group")) %>%
+  dplyr::mutate(AudienceSize = factor(AudienceSize, 
+                                         levels = c("Dyad",
+                                                    "Group"))) %>%
+  dplyr::mutate(Function = factor(Function, 
+                                         levels = c("Attributive",
+                                                    "Predicative"))) %>%
+  dplyr::mutate(SemanticCategory = factor(SemanticCategory, 
+                                         levels = c("HumanPropensity", "Age",
+                                                    "Color", "Difficulty",
+                                                    "Dimension", "Other",
+                                                    "PhysicalProperty",
+                                                    "Value")))
+# inspect data
+str(ampaus)
+```
+
+
+```{r ampause_02_05, echo=T, eval = T, message=FALSE, warning=FALSE}
+ampaus <- ampaus %>%
+  dplyr::filter(complete.cases(.))
+nrow(ampaus)
+```
+
+
+```{r ampause_02_07, echo=T, eval = T, message=FALSE, warning=FALSE}
+# prepare data for plotting
+# save age lables in vector
+famps <- c("very", "really", "so", "pretty")
+# create data frame with relevant variables
+pd <- ampaus %>%
+  dplyr::select(Age, Function, Amplified, Variant) %>%
+  dplyr::mutate(Amplified = ifelse(Amplified == 1, 100, 0)) %>%
+  dplyr::mutate(Amplified = as.numeric(Amplified)) %>%
+  dplyr::mutate(Variant = ifelse(Variant  %in% famps, Variant , "other")) %>%
+  dplyr::mutate(other = ifelse(Variant == "other", 100, 0)) %>%
+  dplyr::mutate(pretty = ifelse(Variant == "pretty", 100, 0)) %>%
+  dplyr::mutate(really = ifelse(Variant == "really", 100, 0)) %>%
+  dplyr::mutate(so = ifelse(Variant == "so", 100, 0)) %>%
+  dplyr::mutate(very = ifelse(Variant == "very", 100, 0)) %>%
+  dplyr::mutate(zero = ifelse(Variant == "0", 100, 0)) %>%
+  dplyr::filter(complete.cases(.))
+# inspect data
+pd
+```
+
+
+
+```{r ampause_02_09, echo=T, eval = T, message=FALSE, warning=FALSE}
+# p1
+pd1 <- pd %>%
+  dplyr::filter(Amplified == 100) %>%
+  dplyr::mutate(Variant = as.factor(Variant)) %>%
+  dplyr::group_by(Age, Function, Variant) %>%
+  dplyr::summarise(Frequency = n()) %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(Age, Function) %>%
+  dplyr::mutate(Sum = sum(Frequency)) %>%
+  dplyr::mutate(Percent = round(Frequency/Sum*100, 1)) %>%
+  dplyr::group_by(Variant)
+pd1 
+```
+
+```{r ampause_02_11, echo=T, eval = T, message=FALSE, warning=FALSE}
+p1 <- ggplot(pd1, aes(x = reorder(Age, desc(Age)), y = Percent, group = Variant, 
+                      color = Variant, linetype = Variant)) +
+  facet_wrap(vars(Function)) +
+  geom_line() +
+  guides(color=guide_legend(override.aes=list(fill=NA))) +
+  scale_color_manual(values = 
+                       c("gray70", "gray70", "gray20", "gray70", "gray20"),
+                        name="Variant",
+                        breaks = c("other", "pretty", "really", "so", "very"), 
+                        labels = c("other", "pretty", "really", "so", "very")) +
+  scale_linetype_manual(values = 
+                          c("dotted", "dotdash", "longdash", "dashed", "solid"),
+                        name="Variant",
+                        breaks = c("other", "pretty", "really", "so", "very"), 
+                        labels = c("other",  "pretty", "really", "so", "very")) +
+  theme_set(theme_bw(base_size = 12)) +
+  theme(legend.position="top", 
+        axis.text.x = element_text(size=12),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()) +
+  coord_cartesian(ylim = c(0, 70)) +
+  labs(x = "Age", y = "Percent of Amplification") +
+  guides(size = FALSE)+
+  guides(alpha = FALSE)+
+  ggsave(file = paste(imageDirectory,"VariantPdFunction.png",sep="/"), 
+         width = 12, height = 10, units = c("cm"),  dpi = 320)
+p1
+```
+
+WARNING: DATA REDUCTION
+
+```{r ampause_02_13, echo=T, eval = T, message=FALSE, warning=FALSE}
+# recode adjectives
+#ntfrqadj <- names(table(ampaus$Adjective))[which(table(ampaus$Adjective) <= 10)]
+#ampaus <- ampaus %>%
+#  dplyr::mutate(Adjective = ifelse(Adjective %in% ntfrqadj, "other", Adjective))
+```
+
+```{r ampause_02_15, echo=T, eval = T, message=FALSE, warning=FALSE}
+ldampaus <- ampaus %>%
+  dplyr::select(Age, Variant, Adjective) %>%
+  dplyr::mutate(Variant = ifelse(Variant  %in% famps, Variant , "other")) %>%
+  dplyr::group_by(Age, Variant) %>%
+  dplyr::summarise(Adjectivetypes = paste(names(table(Adjective)), 
+                                          sep = " ", collapse = " "),
+                   Adjectives = length(names(table(Adjective))),
+                   Frequency = n())
+ldscores <- ldampaus %>%
+  dplyr::mutate(LexicalDiversity =round(Adjectives/Frequency, 1)) %>%
+  dplyr::select(Age, Variant, LexicalDiversity)
+ldscores
+```
+
+We now visualize the results of the lexical diversity analysis by displaying the lexical diversity scores across apparent time.
+
+```{r ampause_02_17, echo=T, eval = T, message=FALSE, warning=FALSE}
+p2 <- ggplot(ldscores, aes(x = reorder(Age, desc(Age)), y = LexicalDiversity, 
+                      group = Variant, 
+                      color = Variant, linetype = Variant)) +
+  geom_line() +
+  guides(color=guide_legend(override.aes=list(fill=NA))) +
+  scale_color_manual(values = 
+                       c("gray70", "gray70", "gray20", "gray70", "gray20"),
+                        name="Variant",
+                        breaks = c("other", "pretty", "really", "so", "very"), 
+                        labels = c("other", "pretty", "really", "so", "very")) +
+  scale_linetype_manual(values = 
+                          c("dotted", "dotdash", "longdash", "dashed", "solid"),
+                        name="Variant",
+                        breaks = c("other", "pretty", "really", "so", "very"), 
+                        labels = c("other",  "pretty", "really", "so", "very")) +
+  theme_set(theme_bw(base_size = 12)) +
+  theme(legend.position="top", 
+        axis.text.x = element_text(size=12),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()) +
+  coord_cartesian(ylim = c(0, 1)) +
+  labs(x = "Age", y = "Lexical Diversity (LD)") +
+  guides(size = FALSE)+
+  guides(alpha = FALSE)+
+  ggsave(file = paste(imageDirectory,"LexicalDiversity.png",sep="/"), 
+         width = 12, height = 10, units = c("cm"),  dpi = 320)
+p2
+```
+
+Now, we perform a covarying collexeme analysis for really versus other amplfiers.
+
+```{r ampause_02_19, echo=T, eval = T, message=FALSE, warning=FALSE}
+ccla_really_aus <- ampaus %>%
+  dplyr::select(Age, Variant, Adjective) %>%
+  dplyr::mutate(really = ifelse(Variant == "really", 1, 0),
+                other = ifelse(Variant != "really", 1, 0))  %>%
+  dplyr::select(Age, Adjective, really, other) %>%
+  dplyr::group_by(Age) %>%
+  dplyr::mutate(Freq_AllAdj = n(),
+                Freq_AllAdj_really = sum(as.numeric(as.character(really))),
+                Freq_AllAdj_other = sum(as.numeric(as.character(other)))
+                ) %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(Age, Adjective) %>%
+  dplyr::summarise(Freq_AllAdj = unique(Freq_AllAdj),
+                   Freq_AllAdj_really = unique(Freq_AllAdj_really),
+                   Freq_AllAdj_other = unique(Freq_AllAdj_other),
+                   Freq_really = sum(as.numeric(as.character(really))),
+                   Freq_other = sum(as.numeric(as.character(other)))) %>%
+  dplyr::rowwise() %>%
+  dplyr::mutate(Freq_Adj = sum(Freq_really+Freq_other)) %>%
+  dplyr::mutate(a = Freq_really,
+                b = Freq_AllAdj_really-Freq_really,
+                c = Freq_other,
+                d = Freq_AllAdj_other-Freq_other) %>%
+  dplyr::rowwise() %>%
+  dplyr::mutate(p = as.vector(unlist(fisher.test(matrix(c(a, b, c, d), ncol = 2, byrow = T), simulate.p.value=TRUE)[1]))) %>%
+    dplyr::mutate(x2 = as.vector(unlist(chisq.test(matrix(c(a, b, c, d), ncol = 2, byrow = T), simulate.p.value=TRUE)[1]))) %>%
+  dplyr::mutate(phi = sqrt((x2/(a + b + c + d)))) %>%
+      dplyr::mutate(expected = as.vector(unlist(chisq.test(matrix(c(a, b, c, d), ncol = 2, byrow = T), simulate.p.value=TRUE)$expected[1]))) %>%
+  dplyr::mutate(Significance = ifelse(p <= .05, "p<.001",
+                ifelse(p <= .01, "p<.01",
+                       ifelse(p <= .001, "p<.001", "n.s."))))
+ccla_really_aus <- ccla_really_aus %>%
+  dplyr::mutate(NRows = nrow(ccla_really_aus)) %>%
+  dplyr::ungroup() %>%
+  dplyr::arrange(p) %>%
+  dplyr::mutate(j = 1:n()) %>%
+  # perform benjamini-holm correction
+  dplyr::mutate(corr05 = ((j/NRows)*0.05)) %>%
+  dplyr::mutate(corr01 = ((j/NRows)*0.01)) %>%
+  dplyr::mutate(corr001 = ((j/NRows)*0.001)) %>%
+  # calculate corrected significance status
+  dplyr::mutate(CorrSignificance = ifelse(p <= corr001, "p<.001",
+                ifelse(p <= corr01, "p<.01",
+                       ifelse(p <= corr001, "p<.001", "n.s.")))) %>%
+  dplyr::mutate(p = round(p, 6)) %>%
+  dplyr::mutate(x2 = round(x2, 1)) %>%
+  dplyr::mutate(phi = round(phi, 2)) %>%
+  dplyr::arrange(p) %>%
+  dplyr::select(-a, -b, -c, -d, - j, -NRows, -corr05, -corr01, -corr001,
+                -Significance, -Freq_AllAdj, -Freq_AllAdj_other,
+                -Freq_AllAdj_really) %>%
+  dplyr::mutate(Type = ifelse(expected > Freq_really, "Antitype", "Type"))  %>%
+  dplyr::mutate(Variant = "really")
+# inspect results
+ccla_really_aus
+```
+
+Next, we perform the same covarying collexeme analysis for very versus other amplifiers.
+
+```{r ampause_02_21, echo=T, eval = T, message=FALSE, warning=FALSE}
+ccla_very_aus <- ampaus %>%
+  dplyr::select(Age, Variant, Adjective) %>%
+  dplyr::mutate(very = ifelse(Variant == "very", 1, 0),
+                other = ifelse(Variant != "very", 1, 0))  %>%
+  dplyr::select(Age, Adjective, very, other) %>%
+  dplyr::group_by(Age) %>%
+  dplyr::mutate(Freq_AllAdj = n(),
+                Freq_AllAdj_very = sum(as.numeric(as.character(very))),
+                Freq_AllAdj_other = sum(as.numeric(as.character(other)))
+                ) %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(Age, Adjective) %>%
+  dplyr::summarise(Freq_AllAdj = unique(Freq_AllAdj),
+                   Freq_AllAdj_very = unique(Freq_AllAdj_very),
+                   Freq_AllAdj_other = unique(Freq_AllAdj_other),
+                   Freq_very = sum(as.numeric(as.character(very))),
+                   Freq_other = sum(as.numeric(as.character(other)))) %>%
+  dplyr::rowwise() %>%
+  dplyr::mutate(Freq_Adj = sum(Freq_very+Freq_other)) %>%
+  dplyr::mutate(a = Freq_very,
+                b = Freq_AllAdj_very-Freq_very,
+                c = Freq_other,
+                d = Freq_AllAdj_other-Freq_other) %>%
+  dplyr::rowwise() %>%
+  dplyr::mutate(p = as.vector(unlist(fisher.test(matrix(c(a, b, c, d), ncol = 2, byrow = T), simulate.p.value=TRUE)[1]))) %>%
+    dplyr::mutate(x2 = as.vector(unlist(chisq.test(matrix(c(a, b, c, d), ncol = 2, byrow = T), simulate.p.value=TRUE)[1]))) %>%
+  dplyr::mutate(phi = sqrt((x2/(a + b + c + d)))) %>%
+      dplyr::mutate(expected = as.vector(unlist(chisq.test(matrix(c(a, b, c, d), ncol = 2, byrow = T), simulate.p.value=TRUE)$expected[1]))) %>%
+  dplyr::mutate(Significance = ifelse(p <= .05, "p<.001",
+                ifelse(p <= .01, "p<.01",
+                       ifelse(p <= .001, "p<.001", "n.s."))))
+ccla_very_aus <- ccla_very_aus %>%
+  dplyr::mutate(NRows = nrow(ccla_very_aus)) %>%
+  dplyr::ungroup() %>%
+  dplyr::arrange(p) %>%
+  dplyr::mutate(j = 1:n()) %>%
+  # perform benjamini-holm correction
+  dplyr::mutate(corr05 = ((j/NRows)*0.05)) %>%
+  dplyr::mutate(corr01 = ((j/NRows)*0.01)) %>%
+  dplyr::mutate(corr001 = ((j/NRows)*0.001)) %>%
+  # calculate corrected significance status
+  dplyr::mutate(CorrSignificance = ifelse(p <= corr001, "p<.001",
+                ifelse(p <= corr01, "p<.01",
+                       ifelse(p <= corr001, "p<.001", "n.s.")))) %>%
+  dplyr::mutate(p = round(p, 6)) %>%
+  dplyr::mutate(x2 = round(x2, 1)) %>%
+  dplyr::mutate(phi = round(phi, 2)) %>%
+  dplyr::arrange(p) %>%
+  dplyr::select(-a, -b, -c, -d, - j, -NRows, -corr05, -corr01, -corr001,
+                -Significance, -Freq_AllAdj, -Freq_AllAdj_other,
+                -Freq_AllAdj_very) %>%
+  dplyr::mutate(Type = ifelse(expected > Freq_very, "Antitype", "Type")) %>%
+  dplyr::mutate(Variant = "very") 
+# inspect results
+ccla_very_aus
+```
+
+Next, we perform the same covarying collexeme analysis for so versus other amplifiers.
+
+```{r ampause_02_23, echo=T, eval = T, message=FALSE, warning=FALSE}
+ccla_so_aus <- ampaus %>%
+  dplyr::select(Age, Variant, Adjective) %>%
+  dplyr::mutate(so = ifelse(Variant == "so", 1, 0),
+                other = ifelse(Variant != "so", 1, 0))  %>%
+  dplyr::select(Age, Adjective, so, other) %>%
+  dplyr::group_by(Age) %>%
+  dplyr::mutate(Freq_AllAdj = n(),
+                Freq_AllAdj_so = sum(as.numeric(as.character(so))),
+                Freq_AllAdj_other = sum(as.numeric(as.character(other)))
+                ) %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(Age, Adjective) %>%
+  dplyr::summarise(Freq_AllAdj = unique(Freq_AllAdj),
+                   Freq_AllAdj_so = unique(Freq_AllAdj_so),
+                   Freq_AllAdj_other = unique(Freq_AllAdj_other),
+                   Freq_so = sum(as.numeric(as.character(so))),
+                   Freq_other = sum(as.numeric(as.character(other)))) %>%
+  dplyr::rowwise() %>%
+  dplyr::mutate(Freq_Adj = sum(Freq_so+Freq_other)) %>%
+  dplyr::mutate(a = Freq_so,
+                b = Freq_AllAdj_so-Freq_so,
+                c = Freq_other,
+                d = Freq_AllAdj_other-Freq_other) %>%
+  dplyr::rowwise() %>%
+  dplyr::mutate(p = as.vector(unlist(fisher.test(matrix(c(a, b, c, d), ncol = 2, byrow = T), simulate.p.value=TRUE)[1]))) %>%
+    dplyr::mutate(x2 = as.vector(unlist(chisq.test(matrix(c(a, b, c, d), ncol = 2, byrow = T), simulate.p.value=TRUE)[1]))) %>%
+  dplyr::mutate(phi = sqrt((x2/(a + b + c + d)))) %>%
+      dplyr::mutate(expected = as.vector(unlist(chisq.test(matrix(c(a, b, c, d), ncol = 2, byrow = T), simulate.p.value=TRUE)$expected[1]))) %>%
+  dplyr::mutate(Significance = ifelse(p <= .05, "p<.001",
+                ifelse(p <= .01, "p<.01",
+                       ifelse(p <= .001, "p<.001", "n.s."))))
+ccla_so_aus <- ccla_so_aus %>%
+  dplyr::mutate(NRows = nrow(ccla_so_aus)) %>%
+  dplyr::ungroup() %>%
+  dplyr::arrange(p) %>%
+  dplyr::mutate(j = 1:n()) %>%
+  # perform benjamini-holm correction
+  dplyr::mutate(corr05 = ((j/NRows)*0.05)) %>%
+  dplyr::mutate(corr01 = ((j/NRows)*0.01)) %>%
+  dplyr::mutate(corr001 = ((j/NRows)*0.001)) %>%
+  # calculate corrected significance status
+  dplyr::mutate(CorrSignificance = ifelse(p <= corr001, "p<.001",
+                ifelse(p <= corr01, "p<.01",
+                       ifelse(p <= corr001, "p<.001", "n.s.")))) %>%
+  dplyr::mutate(p = round(p, 6)) %>%
+  dplyr::mutate(x2 = round(x2, 1)) %>%
+  dplyr::mutate(phi = round(phi, 2)) %>%
+  dplyr::arrange(p) %>%
+  dplyr::select(-a, -b, -c, -d, - j, -NRows, -corr05, -corr01, -corr001,
+                -Significance, -Freq_AllAdj, -Freq_AllAdj_other,
+                -Freq_AllAdj_so) %>%
+  dplyr::mutate(Type = ifelse(expected > Freq_so, "Antitype", "Type")) %>%
+  dplyr::mutate(Variant = "so") 
+# inspect results
+ccla_so_aus
+```
+
+Next, we perform the same covarying collexeme analysis for pretty versus other amplifiers.
+
+```{r ampause_02_25, echo=T, eval = T, message=FALSE, warning=FALSE}
+ccla_pretty_aus <- ampaus %>%
+  dplyr::select(Age, Variant, Adjective) %>%
+  dplyr::mutate(pretty = ifelse(Variant == "pretty", 1, 0),
+                other = ifelse(Variant != "pretty", 1, 0))  %>%
+  dplyr::select(Age, Adjective, pretty, other) %>%
+  dplyr::group_by(Age) %>%
+  dplyr::mutate(Freq_AllAdj = n(),
+                Freq_AllAdj_pretty = sum(as.numeric(as.character(pretty))),
+                Freq_AllAdj_other = sum(as.numeric(as.character(other)))
+                ) %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(Age, Adjective) %>%
+  dplyr::summarise(Freq_AllAdj = unique(Freq_AllAdj),
+                   Freq_AllAdj_pretty = unique(Freq_AllAdj_pretty),
+                   Freq_AllAdj_other = unique(Freq_AllAdj_other),
+                   Freq_pretty = sum(as.numeric(as.character(pretty))),
+                   Freq_other = sum(as.numeric(as.character(other)))) %>%
+  dplyr::rowwise() %>%
+  dplyr::mutate(Freq_Adj = sum(Freq_pretty+Freq_other)) %>%
+  dplyr::mutate(a = Freq_pretty,
+                b = Freq_AllAdj_pretty-Freq_pretty,
+                c = Freq_other,
+                d = Freq_AllAdj_other-Freq_other) %>%
+  dplyr::rowwise() %>%
+  dplyr::mutate(p = as.vector(unlist(fisher.test(matrix(c(a, b, c, d), ncol = 2, byrow = T), simulate.p.value=TRUE)[1]))) %>%
+    dplyr::mutate(x2 = as.vector(unlist(chisq.test(matrix(c(a, b, c, d), ncol = 2, byrow = T), simulate.p.value=TRUE)[1]))) %>%
+  dplyr::mutate(phi = sqrt((x2/(a + b + c + d)))) %>%
+      dplyr::mutate(expected = as.vector(unlist(chisq.test(matrix(c(a, b, c, d), ncol = 2, byrow = T), simulate.p.value=TRUE)$expected[1]))) %>%
+  dplyr::mutate(Significance = ifelse(p <= .05, "p<.001",
+                ifelse(p <= .01, "p<.01",
+                       ifelse(p <= .001, "p<.001", "n.s."))))
+ccla_pretty_aus <- ccla_pretty_aus %>%
+  dplyr::mutate(NRows = nrow(ccla_pretty_aus)) %>%
+  dplyr::ungroup() %>%
+  dplyr::arrange(p) %>%
+  dplyr::mutate(j = 1:n()) %>%
+  # perform benjamini-holm correction
+  dplyr::mutate(corr05 = ((j/NRows)*0.05)) %>%
+  dplyr::mutate(corr01 = ((j/NRows)*0.01)) %>%
+  dplyr::mutate(corr001 = ((j/NRows)*0.001)) %>%
+  # calculate corrected significance status
+  dplyr::mutate(CorrSignificance = ifelse(p <= corr001, "p<.001",
+                ifelse(p <= corr01, "p<.01",
+                       ifelse(p <= corr001, "p<.001", "n.s.")))) %>%
+  dplyr::mutate(p = round(p, 6)) %>%
+  dplyr::mutate(x2 = round(x2, 1)) %>%
+  dplyr::mutate(phi = round(phi, 2)) %>%
+  dplyr::arrange(p) %>%
+  dplyr::select(-a, -b, -c, -d, - j, -NRows, -corr05, -corr01, -corr001,
+                -Significance, -Freq_AllAdj, -Freq_AllAdj_other,
+                -Freq_AllAdj_pretty) %>%
+  dplyr::mutate(Type = ifelse(expected > Freq_pretty, "Antitype", "Type")) %>%
+  dplyr::mutate(Variant = "pretty")
+# inspect results
+ccla_pretty_aus
+```
+
+
+Next, we perform the same covarying collexeme analysis for pretty versus other amplifiers.
+
+```{r ampause_02_27, echo=T, eval = T, message=FALSE, warning=FALSE}
+ccla_other_aus <- ampaus %>%
+  dplyr::select(Age, Variant, Adjective) %>%
+  dplyr::mutate(Variant = ifelse(Variant %in% famps, "other", "famps")) %>%
+  dplyr::mutate(other = ifelse(Variant == "other", 1, 0),
+                famps = ifelse(Variant != "other", 1, 0))  %>%
+  dplyr::select(Age, Adjective, other, famps) %>%
+  dplyr::group_by(Age) %>%
+  dplyr::mutate(Freq_AllAdj = n(),
+                Freq_AllAdj_other = sum(as.numeric(as.character(other))),
+                Freq_AllAdj_famps = sum(as.numeric(as.character(famps)))
+                ) %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(Age, Adjective) %>%
+  dplyr::summarise(Freq_AllAdj = unique(Freq_AllAdj),
+                   Freq_AllAdj_other = unique(Freq_AllAdj_other),
+                   Freq_AllAdj_famps = unique(Freq_AllAdj_famps),
+                   Freq_other = sum(as.numeric(as.character(other))),
+                   Freq_famps = sum(as.numeric(as.character(famps)))) %>%
+  dplyr::rowwise() %>%
+  dplyr::mutate(Freq_Adj = sum(Freq_other+Freq_famps)) %>%
+  dplyr::mutate(a = Freq_other,
+                b = Freq_AllAdj_other-Freq_other,
+                c = Freq_famps,
+                d = Freq_AllAdj_famps-Freq_famps) %>%
+  dplyr::rowwise() %>%
+  dplyr::mutate(p = as.vector(unlist(fisher.test(matrix(c(a, b, c, d), ncol = 2, byrow = T), simulate.p.value=TRUE)[1]))) %>%
+    dplyr::mutate(x2 = as.vector(unlist(chisq.test(matrix(c(a, b, c, d), ncol = 2, byrow = T), simulate.p.value=TRUE)[1]))) %>%
+  dplyr::mutate(phi = sqrt((x2/(a + b + c + d)))) %>%
+      dplyr::mutate(expected = as.vector(unlist(chisq.test(matrix(c(a, b, c, d), ncol = 2, byrow = T), simulate.p.value=TRUE)$expected[1]))) %>%
+  dplyr::mutate(Significance = ifelse(p <= .05, "p<.001",
+                ifelse(p <= .01, "p<.01",
+                       ifelse(p <= .001, "p<.001", "n.s."))))
+ccla_other_aus <- ccla_other_aus %>%
+  dplyr::mutate(NRows = nrow(ccla_other_aus)) %>%
+  dplyr::ungroup() %>%
+  dplyr::arrange(p) %>%
+  dplyr::mutate(j = 1:n()) %>%
+  # perform benjamini-holm correction
+  dplyr::mutate(corr05 = ((j/NRows)*0.05)) %>%
+  dplyr::mutate(corr01 = ((j/NRows)*0.01)) %>%
+  dplyr::mutate(corr001 = ((j/NRows)*0.001)) %>%
+  # calculate corrected significance status
+  dplyr::mutate(CorrSignificance = ifelse(p <= corr001, "p<.001",
+                ifelse(p <= corr01, "p<.01",
+                       ifelse(p <= corr001, "p<.001", "n.s.")))) %>%
+  dplyr::mutate(p = round(p, 6)) %>%
+  dplyr::mutate(x2 = round(x2, 1)) %>%
+  dplyr::mutate(phi = round(phi, 2)) %>%
+  dplyr::arrange(p) %>%
+  dplyr::select(-a, -b, -c, -d, - j, -NRows, -corr05, -corr01, -corr001,
+                -Significance, -Freq_AllAdj, -Freq_AllAdj_famps,
+                -Freq_AllAdj_other) %>%
+  dplyr::mutate(Type = ifelse(expected > Freq_other, "Antitype", "Type")) %>%
+  dplyr::mutate(Variant = "other")
+# inspect results
+ccla_other_aus
+```
+
+Next, we combine the results of teh covarying collexeme analysis into a single table.
+
+```{r ampause_02_29, echo=T, eval = T, message=FALSE, warning=FALSE}
+# adapt column names
+colnames(ccla_really_aus) <- gsub("really", "Variant", colnames(ccla_really_aus))
+colnames(ccla_very_aus) <- gsub("very", "Variant", colnames(ccla_very_aus))
+colnames(ccla_so_aus) <- gsub("so", "Variant", colnames(ccla_so_aus))
+colnames(ccla_pretty_aus) <- gsub("pretty", "Variant", colnames(ccla_pretty_aus))
+colnames(ccla_other_aus) <- gsub("other", "Variant", colnames(ccla_other_aus))
+colnames(ccla_other_aus) <- gsub("famps", "other", colnames(ccla_other_aus))
+# combine tables
+ccla_ampaus <- rbind(ccla_really_aus, ccla_very_aus, 
+                     ccla_so_aus, ccla_pretty_aus, ccla_other_aus)
+ccla_ampaus <- ccla_ampaus %>%
+  dplyr::filter(p < .05) %>%
+  dplyr::arrange(Age)
+# inspect results
+ccla_ampaus
+```
+
+```{r ampause_02_31, echo=T, eval = T, message=FALSE, warning=FALSE}
+library(tidyr)
+# by frequency
+#freqadj <- names(table(ampaus$Adjective))[which(table(ampaus$Adjective) > 50)]
+###
+# by significance
+#freqadj <- ccla_ampaus %>%
+#  dplyr::filter(CorrSignificance != "n.s.")
+#freqadj <- freqadj$Adjective
+# by effect size
+freqadj <- ccla_ampaus %>%
+  dplyr::filter(Freq_Adj > 20) %>%
+  dplyr::mutate(remove = ifelse(phi > 0.1, "keep",
+                                ifelse(phi < -0.1, "keep", "remove"))) %>%
+  dplyr::filter(remove != "remove") %>%
+  dplyr::select(Adjective) %>%
+  unique()
+freqadj <- freqadj$Adjective
+freqadj
+```
+
+
+```{r ampause_02_33, echo=T, eval = T, message=FALSE, warning=FALSE}
+
+pd3 <- ccla_ampaus %>%
+  dplyr::select(Age, Adjective, Variant, Type, phi) %>%
+  dplyr::mutate(phi = ifelse(Type == "Antitype", -phi, phi)) %>%
+  dplyr::select(-Type) %>%
+  dplyr::filter(Adjective %in% freqadj) %>%
+  tidyr::spread(Adjective, phi) %>%
+  tidyr::replace_na(list(funny = 0,
+                    good = 0,
+                    interesting = 0,
+                    little = 0,
+                    old = 0)) %>%
+  tidyr::gather(Adjective, phi, funny:old) %>%
+  tidyr::spread(Variant, phi) %>%
+  tidyr::replace_na(list(pretty = 0,
+                    really = 0,
+                    so = 0,
+                    very = 0,
+                    other = 0)) %>%
+  tidyr::gather(Variant, phi, other:very)
+pd3
+
+```
+
+
+```{r ampause_02_35, echo=T, eval = T, message=FALSE, warning=FALSE}
+p3 <- ggplot(pd3, aes(x = reorder(Age, desc(Age)), y = phi, group = Variant, 
+                      color = Variant, linetype = Variant)) +
+  facet_wrap(vars(Adjective)) +
+  geom_line() +
+  guides(color=guide_legend(override.aes=list(fill=NA))) +
+  scale_color_manual(values = 
+                       c("gray70", "gray70", "gray20", "gray70", "gray20"),
+                        name="Variant",
+                        breaks = c("other", "pretty", "really", "so", "very"), 
+                        labels = c("other", "pretty", "really", "so", "very")) +
+  scale_linetype_manual(values = 
+                          c("dotted", "dotdash", "longdash", "dashed", "solid"),
+                        name="Variant",
+                        breaks = c("other", "pretty", "really", "so", "very"), 
+                        labels = c("other",  "pretty", "really", "so", "very")) +
+  theme_set(theme_bw(base_size = 12)) +
+  theme(legend.position="top", 
+        axis.text.x = element_text(size=12),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()) +
+  coord_cartesian(ylim = c(-.2, .4)) +
+  labs(x = "Age", y = "Collocation Strength") +
+  guides(size = FALSE)+
+  guides(alpha = FALSE)+
+  ggsave(file = paste(imageDirectory,"CCLA_preliminary.png",sep="/"), 
+         width = 12, height = 10, units = c("cm"),  dpi = 320)
+p3
+```
+
+We now repeat the covarying collexeme analysis with all adjectives that did not have strong collocation strengths colapsed. This second analysis starts with performing a covarying collexeme analysis for really versus other amplfiers.
+
+```{r ampause_02_37, echo=T, eval = T, message=FALSE, warning=FALSE}
+ccla_really_aus <- ampaus %>%
+  dplyr::select(Age, Variant, Adjective) %>%
+  dplyr::mutate(Adjective = ifelse(Adjective %in% freqadj, Adjective, "other")) %>%
+  dplyr::mutate(really = ifelse(Variant == "really", 1, 0),
+                other = ifelse(Variant != "really", 1, 0))  %>%
+  dplyr::select(Age, Adjective, really, other) %>%
+  dplyr::group_by(Age) %>%
+  dplyr::mutate(Freq_AllAdj = n(),
+                Freq_AllAdj_really = sum(as.numeric(as.character(really))),
+                Freq_AllAdj_other = sum(as.numeric(as.character(other)))
+                ) %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(Age, Adjective) %>%
+  dplyr::summarise(Freq_AllAdj = unique(Freq_AllAdj),
+                   Freq_AllAdj_really = unique(Freq_AllAdj_really),
+                   Freq_AllAdj_other = unique(Freq_AllAdj_other),
+                   Freq_really = sum(as.numeric(as.character(really))),
+                   Freq_other = sum(as.numeric(as.character(other)))) %>%
+  dplyr::rowwise() %>%
+  dplyr::mutate(Freq_Adj = sum(Freq_really+Freq_other)) %>%
+  dplyr::mutate(a = Freq_really,
+                b = Freq_AllAdj_really-Freq_really,
+                c = Freq_other,
+                d = Freq_AllAdj_other-Freq_other) %>%
+  dplyr::rowwise() %>%
+  dplyr::mutate(p = as.vector(unlist(fisher.test(matrix(c(a, b, c, d), ncol = 2, byrow = T), simulate.p.value=TRUE)[1]))) %>%
+    dplyr::mutate(x2 = as.vector(unlist(chisq.test(matrix(c(a, b, c, d), ncol = 2, byrow = T), simulate.p.value=TRUE)[1]))) %>%
+  dplyr::mutate(phi = sqrt((x2/(a + b + c + d)))) %>%
+      dplyr::mutate(expected = as.vector(unlist(chisq.test(matrix(c(a, b, c, d), ncol = 2, byrow = T), simulate.p.value=TRUE)$expected[1]))) %>%
+  dplyr::mutate(Significance = ifelse(p <= .05, "p<.001",
+                ifelse(p <= .01, "p<.01",
+                       ifelse(p <= .001, "p<.001", "n.s."))))
+ccla_really_aus <- ccla_really_aus %>%
+  dplyr::mutate(NRows = nrow(ccla_really_aus)) %>%
+  dplyr::ungroup() %>%
+  dplyr::arrange(p) %>%
+  dplyr::mutate(j = 1:n()) %>%
+  # perform benjamini-holm correction
+  dplyr::mutate(corr05 = ((j/NRows)*0.05)) %>%
+  dplyr::mutate(corr01 = ((j/NRows)*0.01)) %>%
+  dplyr::mutate(corr001 = ((j/NRows)*0.001)) %>%
+  # calculate corrected significance status
+  dplyr::mutate(CorrSignificance = ifelse(p <= corr001, "p<.001",
+                ifelse(p <= corr01, "p<.01",
+                       ifelse(p <= corr001, "p<.001", "n.s.")))) %>%
+  dplyr::mutate(p = round(p, 6)) %>%
+  dplyr::mutate(x2 = round(x2, 1)) %>%
+  dplyr::mutate(phi = round(phi, 2)) %>%
+  dplyr::arrange(p) %>%
+  dplyr::select(-a, -b, -c, -d, - j, -NRows, -corr05, -corr01, -corr001,
+                -Significance, -Freq_AllAdj, -Freq_AllAdj_other,
+                -Freq_AllAdj_really) %>%
+  dplyr::mutate(Type = ifelse(expected > Freq_really, "Antitype", "Type"))  %>%
+  dplyr::mutate(Variant = "really")
+# inspect results
+ccla_really_aus
+```
+
+Next, we perform the same covarying collexeme analysis for very versus other amplifiers.
+
+```{r ampause_02_39, echo=T, eval = T, message=FALSE, warning=FALSE}
+ccla_very_aus <- ampaus %>%
+  dplyr::select(Age, Variant, Adjective) %>%
+    dplyr::mutate(Adjective = ifelse(Adjective %in% freqadj, Adjective, "other")) %>%
+  dplyr::mutate(very = ifelse(Variant == "very", 1, 0),
+                other = ifelse(Variant != "very", 1, 0))  %>%
+  dplyr::select(Age, Adjective, very, other) %>%
+  dplyr::group_by(Age) %>%
+  dplyr::mutate(Freq_AllAdj = n(),
+                Freq_AllAdj_very = sum(as.numeric(as.character(very))),
+                Freq_AllAdj_other = sum(as.numeric(as.character(other)))
+                ) %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(Age, Adjective) %>%
+  dplyr::summarise(Freq_AllAdj = unique(Freq_AllAdj),
+                   Freq_AllAdj_very = unique(Freq_AllAdj_very),
+                   Freq_AllAdj_other = unique(Freq_AllAdj_other),
+                   Freq_very = sum(as.numeric(as.character(very))),
+                   Freq_other = sum(as.numeric(as.character(other)))) %>%
+  dplyr::rowwise() %>%
+  dplyr::mutate(Freq_Adj = sum(Freq_very+Freq_other)) %>%
+  dplyr::mutate(a = Freq_very,
+                b = Freq_AllAdj_very-Freq_very,
+                c = Freq_other,
+                d = Freq_AllAdj_other-Freq_other) %>%
+  dplyr::rowwise() %>%
+  dplyr::mutate(p = as.vector(unlist(fisher.test(matrix(c(a, b, c, d), ncol = 2, byrow = T), simulate.p.value=TRUE)[1]))) %>%
+    dplyr::mutate(x2 = as.vector(unlist(chisq.test(matrix(c(a, b, c, d), ncol = 2, byrow = T), simulate.p.value=TRUE)[1]))) %>%
+  dplyr::mutate(phi = sqrt((x2/(a + b + c + d)))) %>%
+      dplyr::mutate(expected = as.vector(unlist(chisq.test(matrix(c(a, b, c, d), ncol = 2, byrow = T), simulate.p.value=TRUE)$expected[1]))) %>%
+  dplyr::mutate(Significance = ifelse(p <= .05, "p<.001",
+                ifelse(p <= .01, "p<.01",
+                       ifelse(p <= .001, "p<.001", "n.s."))))
+ccla_very_aus <- ccla_very_aus %>%
+  dplyr::mutate(NRows = nrow(ccla_very_aus)) %>%
+  dplyr::ungroup() %>%
+  dplyr::arrange(p) %>%
+  dplyr::mutate(j = 1:n()) %>%
+  # perform benjamini-holm correction
+  dplyr::mutate(corr05 = ((j/NRows)*0.05)) %>%
+  dplyr::mutate(corr01 = ((j/NRows)*0.01)) %>%
+  dplyr::mutate(corr001 = ((j/NRows)*0.001)) %>%
+  # calculate corrected significance status
+  dplyr::mutate(CorrSignificance = ifelse(p <= corr001, "p<.001",
+                ifelse(p <= corr01, "p<.01",
+                       ifelse(p <= corr001, "p<.001", "n.s.")))) %>%
+  dplyr::mutate(p = round(p, 6)) %>%
+  dplyr::mutate(x2 = round(x2, 1)) %>%
+  dplyr::mutate(phi = round(phi, 2)) %>%
+  dplyr::arrange(p) %>%
+  dplyr::select(-a, -b, -c, -d, - j, -NRows, -corr05, -corr01, -corr001,
+                -Significance, -Freq_AllAdj, -Freq_AllAdj_other,
+                -Freq_AllAdj_very) %>%
+  dplyr::mutate(Type = ifelse(expected > Freq_very, "Antitype", "Type")) %>%
+  dplyr::mutate(Variant = "very") 
+# inspect results
+ccla_very_aus
+```
+
+Next, we perform the same covarying collexeme analysis for so versus other amplifiers.
+
+```{r ampause_02_41, echo=T, eval = T, message=FALSE, warning=FALSE}
+ccla_so_aus <- ampaus %>%
+  dplyr::select(Age, Variant, Adjective) %>%
+    dplyr::mutate(Adjective = ifelse(Adjective %in% freqadj, Adjective, "other")) %>%
+  dplyr::mutate(so = ifelse(Variant == "so", 1, 0),
+                other = ifelse(Variant != "so", 1, 0))  %>%
+  dplyr::select(Age, Adjective, so, other) %>%
+  dplyr::group_by(Age) %>%
+  dplyr::mutate(Freq_AllAdj = n(),
+                Freq_AllAdj_so = sum(as.numeric(as.character(so))),
+                Freq_AllAdj_other = sum(as.numeric(as.character(other)))
+                ) %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(Age, Adjective) %>%
+  dplyr::summarise(Freq_AllAdj = unique(Freq_AllAdj),
+                   Freq_AllAdj_so = unique(Freq_AllAdj_so),
+                   Freq_AllAdj_other = unique(Freq_AllAdj_other),
+                   Freq_so = sum(as.numeric(as.character(so))),
+                   Freq_other = sum(as.numeric(as.character(other)))) %>%
+  dplyr::rowwise() %>%
+  dplyr::mutate(Freq_Adj = sum(Freq_so+Freq_other)) %>%
+  dplyr::mutate(a = Freq_so,
+                b = Freq_AllAdj_so-Freq_so,
+                c = Freq_other,
+                d = Freq_AllAdj_other-Freq_other) %>%
+  dplyr::rowwise() %>%
+  dplyr::mutate(p = as.vector(unlist(fisher.test(matrix(c(a, b, c, d), ncol = 2, byrow = T), simulate.p.value=TRUE)[1]))) %>%
+    dplyr::mutate(x2 = as.vector(unlist(chisq.test(matrix(c(a, b, c, d), ncol = 2, byrow = T), simulate.p.value=TRUE)[1]))) %>%
+  dplyr::mutate(phi = sqrt((x2/(a + b + c + d)))) %>%
+      dplyr::mutate(expected = as.vector(unlist(chisq.test(matrix(c(a, b, c, d), ncol = 2, byrow = T), simulate.p.value=TRUE)$expected[1]))) %>%
+  dplyr::mutate(Significance = ifelse(p <= .05, "p<.001",
+                ifelse(p <= .01, "p<.01",
+                       ifelse(p <= .001, "p<.001", "n.s."))))
+ccla_so_aus <- ccla_so_aus %>%
+  dplyr::mutate(NRows = nrow(ccla_so_aus)) %>%
+  dplyr::ungroup() %>%
+  dplyr::arrange(p) %>%
+  dplyr::mutate(j = 1:n()) %>%
+  # perform benjamini-holm correction
+  dplyr::mutate(corr05 = ((j/NRows)*0.05)) %>%
+  dplyr::mutate(corr01 = ((j/NRows)*0.01)) %>%
+  dplyr::mutate(corr001 = ((j/NRows)*0.001)) %>%
+  # calculate corrected significance status
+  dplyr::mutate(CorrSignificance = ifelse(p <= corr001, "p<.001",
+                ifelse(p <= corr01, "p<.01",
+                       ifelse(p <= corr001, "p<.001", "n.s.")))) %>%
+  dplyr::mutate(p = round(p, 6)) %>%
+  dplyr::mutate(x2 = round(x2, 1)) %>%
+  dplyr::mutate(phi = round(phi, 2)) %>%
+  dplyr::arrange(p) %>%
+  dplyr::select(-a, -b, -c, -d, - j, -NRows, -corr05, -corr01, -corr001,
+                -Significance, -Freq_AllAdj, -Freq_AllAdj_other,
+                -Freq_AllAdj_so) %>%
+  dplyr::mutate(Type = ifelse(expected > Freq_so, "Antitype", "Type")) %>%
+  dplyr::mutate(Variant = "so") 
+# inspect results
+ccla_so_aus
+```
+
+Next, we perform the same covarying collexeme analysis for pretty versus other amplifiers.
+
+```{r ampause_02_43, echo=T, eval = T, message=FALSE, warning=FALSE}
+ccla_pretty_aus <- ampaus %>%
+  dplyr::select(Age, Variant, Adjective) %>%
+    dplyr::mutate(Adjective = ifelse(Adjective %in% freqadj, Adjective, "other")) %>%
+  dplyr::mutate(pretty = ifelse(Variant == "pretty", 1, 0),
+                other = ifelse(Variant != "pretty", 1, 0))  %>%
+  dplyr::select(Age, Adjective, pretty, other) %>%
+  dplyr::group_by(Age) %>%
+  dplyr::mutate(Freq_AllAdj = n(),
+                Freq_AllAdj_pretty = sum(as.numeric(as.character(pretty))),
+                Freq_AllAdj_other = sum(as.numeric(as.character(other)))
+                ) %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(Age, Adjective) %>%
+  dplyr::summarise(Freq_AllAdj = unique(Freq_AllAdj),
+                   Freq_AllAdj_pretty = unique(Freq_AllAdj_pretty),
+                   Freq_AllAdj_other = unique(Freq_AllAdj_other),
+                   Freq_pretty = sum(as.numeric(as.character(pretty))),
+                   Freq_other = sum(as.numeric(as.character(other)))) %>%
+  dplyr::rowwise() %>%
+  dplyr::mutate(Freq_Adj = sum(Freq_pretty+Freq_other)) %>%
+  dplyr::mutate(a = Freq_pretty,
+                b = Freq_AllAdj_pretty-Freq_pretty,
+                c = Freq_other,
+                d = Freq_AllAdj_other-Freq_other) %>%
+  dplyr::rowwise() %>%
+  dplyr::mutate(p = as.vector(unlist(fisher.test(matrix(c(a, b, c, d), ncol = 2, byrow = T), simulate.p.value=TRUE)[1]))) %>%
+    dplyr::mutate(x2 = as.vector(unlist(chisq.test(matrix(c(a, b, c, d), ncol = 2, byrow = T), simulate.p.value=TRUE)[1]))) %>%
+  dplyr::mutate(phi = sqrt((x2/(a + b + c + d)))) %>%
+      dplyr::mutate(expected = as.vector(unlist(chisq.test(matrix(c(a, b, c, d), ncol = 2, byrow = T), simulate.p.value=TRUE)$expected[1]))) %>%
+  dplyr::mutate(Significance = ifelse(p <= .05, "p<.001",
+                ifelse(p <= .01, "p<.01",
+                       ifelse(p <= .001, "p<.001", "n.s."))))
+ccla_pretty_aus <- ccla_pretty_aus %>%
+  dplyr::mutate(NRows = nrow(ccla_pretty_aus)) %>%
+  dplyr::ungroup() %>%
+  dplyr::arrange(p) %>%
+  dplyr::mutate(j = 1:n()) %>%
+  # perform benjamini-holm correction
+  dplyr::mutate(corr05 = ((j/NRows)*0.05)) %>%
+  dplyr::mutate(corr01 = ((j/NRows)*0.01)) %>%
+  dplyr::mutate(corr001 = ((j/NRows)*0.001)) %>%
+  # calculate corrected significance status
+  dplyr::mutate(CorrSignificance = ifelse(p <= corr001, "p<.001",
+                ifelse(p <= corr01, "p<.01",
+                       ifelse(p <= corr001, "p<.001", "n.s.")))) %>%
+  dplyr::mutate(p = round(p, 6)) %>%
+  dplyr::mutate(x2 = round(x2, 1)) %>%
+  dplyr::mutate(phi = round(phi, 2)) %>%
+  dplyr::arrange(p) %>%
+  dplyr::select(-a, -b, -c, -d, - j, -NRows, -corr05, -corr01, -corr001,
+                -Significance, -Freq_AllAdj, -Freq_AllAdj_other,
+                -Freq_AllAdj_pretty) %>%
+  dplyr::mutate(Type = ifelse(expected > Freq_pretty, "Antitype", "Type")) %>%
+  dplyr::mutate(Variant = "pretty")
+# inspect results
+ccla_pretty_aus
+```
+
+
+Next, we perform the same covarying collexeme analysis for pretty versus other amplifiers.
+
+```{r ampause_02_45, echo=T, eval = T, message=FALSE, warning=FALSE}
+ccla_other_aus <- ampaus %>%
+  dplyr::select(Age, Variant, Adjective) %>%
+    dplyr::mutate(Adjective = ifelse(Adjective %in% freqadj, Adjective, "other")) %>%
+  dplyr::mutate(Variant = ifelse(Variant %in% famps, "other", "famps")) %>%
+  dplyr::mutate(other = ifelse(Variant == "other", 1, 0),
+                famps = ifelse(Variant != "other", 1, 0))  %>%
+  dplyr::select(Age, Adjective, other, famps) %>%
+  dplyr::group_by(Age) %>%
+  dplyr::mutate(Freq_AllAdj = n(),
+                Freq_AllAdj_other = sum(as.numeric(as.character(other))),
+                Freq_AllAdj_famps = sum(as.numeric(as.character(famps)))
+                ) %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(Age, Adjective) %>%
+  dplyr::summarise(Freq_AllAdj = unique(Freq_AllAdj),
+                   Freq_AllAdj_other = unique(Freq_AllAdj_other),
+                   Freq_AllAdj_famps = unique(Freq_AllAdj_famps),
+                   Freq_other = sum(as.numeric(as.character(other))),
+                   Freq_famps = sum(as.numeric(as.character(famps)))) %>%
+  dplyr::rowwise() %>%
+  dplyr::mutate(Freq_Adj = sum(Freq_other+Freq_famps)) %>%
+  dplyr::mutate(a = Freq_other,
+                b = Freq_AllAdj_other-Freq_other,
+                c = Freq_famps,
+                d = Freq_AllAdj_famps-Freq_famps) %>%
+  dplyr::rowwise() %>%
+  dplyr::mutate(p = as.vector(unlist(fisher.test(matrix(c(a, b, c, d), ncol = 2, byrow = T), simulate.p.value=TRUE)[1]))) %>%
+    dplyr::mutate(x2 = as.vector(unlist(chisq.test(matrix(c(a, b, c, d), ncol = 2, byrow = T), simulate.p.value=TRUE)[1]))) %>%
+  dplyr::mutate(phi = sqrt((x2/(a + b + c + d)))) %>%
+      dplyr::mutate(expected = as.vector(unlist(chisq.test(matrix(c(a, b, c, d), ncol = 2, byrow = T), simulate.p.value=TRUE)$expected[1]))) %>%
+  dplyr::mutate(Significance = ifelse(p <= .05, "p<.001",
+                ifelse(p <= .01, "p<.01",
+                       ifelse(p <= .001, "p<.001", "n.s."))))
+ccla_other_aus <- ccla_other_aus %>%
+  dplyr::mutate(NRows = nrow(ccla_other_aus)) %>%
+  dplyr::ungroup() %>%
+  dplyr::arrange(p) %>%
+  dplyr::mutate(j = 1:n()) %>%
+  # perform benjamini-holm correction
+  dplyr::mutate(corr05 = ((j/NRows)*0.05)) %>%
+  dplyr::mutate(corr01 = ((j/NRows)*0.01)) %>%
+  dplyr::mutate(corr001 = ((j/NRows)*0.001)) %>%
+  # calculate corrected significance status
+  dplyr::mutate(CorrSignificance = ifelse(p <= corr001, "p<.001",
+                ifelse(p <= corr01, "p<.01",
+                       ifelse(p <= corr001, "p<.001", "n.s.")))) %>%
+  dplyr::mutate(p = round(p, 6)) %>%
+  dplyr::mutate(x2 = round(x2, 1)) %>%
+  dplyr::mutate(phi = round(phi, 2)) %>%
+  dplyr::arrange(p) %>%
+  dplyr::select(-a, -b, -c, -d, - j, -NRows, -corr05, -corr01, -corr001,
+                -Significance, -Freq_AllAdj, -Freq_AllAdj_famps,
+                -Freq_AllAdj_other) %>%
+  dplyr::mutate(Type = ifelse(expected > Freq_other, "Antitype", "Type")) %>%
+  dplyr::mutate(Variant = "other")
+# inspect results
+ccla_other_aus
+```
+
+Next, we combine the results of teh covarying collexeme analysis into a single table.
+
+```{r ampause_02_47, echo=T, eval = T, message=FALSE, warning=FALSE}
+# adapt column names
+colnames(ccla_really_aus) <- gsub("really", "Variant", colnames(ccla_really_aus))
+colnames(ccla_very_aus) <- gsub("very", "Variant", colnames(ccla_very_aus))
+colnames(ccla_so_aus) <- gsub("so", "Variant", colnames(ccla_so_aus))
+colnames(ccla_pretty_aus) <- gsub("pretty", "Variant", colnames(ccla_pretty_aus))
+colnames(ccla_other_aus) <- gsub("other", "Variant", colnames(ccla_other_aus))
+colnames(ccla_other_aus) <- gsub("famps", "other", colnames(ccla_other_aus))
+# combine tables
+ccla_ampaus <- rbind(ccla_really_aus, ccla_very_aus, 
+                     ccla_so_aus, ccla_pretty_aus, ccla_other_aus)
+ccla_ampaus <- ccla_ampaus %>%
+  dplyr::filter(p < .05) %>%
+  dplyr::arrange(Age)
+# inspect results
+ccla_ampaus
+```
+
+
+```{r ampause_02_49, echo=T, eval = T, message=FALSE, warning=FALSE}
+pd4 <- ccla_ampaus %>%
+  dplyr::select(Age, Adjective, Variant, Type, phi) %>%
+  dplyr::mutate(phi = ifelse(Type == "Antitype", -phi, phi)) %>%
+  dplyr::select(-Type) %>%
+  tidyr::spread(Adjective, phi) %>%
+  tidyr::replace_na(list(funny = 0,
+                    good = 0,
+                    interesting = 0,
+                    little = 0,
+                    old = 0,
+                    other = 0)) %>%
+  tidyr::gather(Adjective, phi, funny:other) %>%
+  tidyr::spread(Variant, phi) %>%
+  tidyr::replace_na(list(pretty = 0,
+                    really = 0,
+                    so = 0,
+                    very = 0,
+                    other = 0)) %>%
+  tidyr::gather(Variant, phi, other:very)
+pd4
+
+```
+
+
+
+```{r ampause_02_51, echo=T, eval = T, message=FALSE, warning=FALSE}
+p4 <- ggplot(pd4, aes(x = reorder(Age, desc(Age)), y = phi, group = Variant, 
+                      color = Variant, linetype = Variant)) +
+  facet_wrap(vars(Adjective)) +
+  geom_line() +
+  guides(color=guide_legend(override.aes=list(fill=NA))) +
+  scale_color_manual(values = 
+                       c("gray70", "gray70", "gray20", "gray70", "gray20"),
+                        name="Variant",
+                        breaks = c("other", "pretty", "really", "so", "very"), 
+                        labels = c("other", "pretty", "really", "so", "very")) +
+  scale_linetype_manual(values = 
+                          c("dotted", "dotdash", "longdash", "dashed", "solid"),
+                        name="Variant",
+                        breaks = c("other", "pretty", "really", "so", "very"), 
+                        labels = c("other",  "pretty", "really", "so", "very")) +
+  theme_set(theme_bw(base_size = 12)) +
+  theme(legend.position="top", 
+        axis.text.x = element_text(size=12),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()) +
+  coord_cartesian(ylim = c(-.2, .4)) +
+  labs(x = "Age", y = "Collocation Strength (phi)") +
+  guides(size = FALSE)+
+  guides(alpha = FALSE)+
+  ggsave(file = paste(imageDirectory,"CCLA_final.png",sep="/"), 
+         width = 12, height = 10, units = c("cm"),  dpi = 320)
+p4
+```
+
+We will now tabulate the data.
+
+```{r ampause_02_53, echo=T, eval = T, message=FALSE, warning=FALSE}
+library(tibble)
+Table1 <- ampaus %>%
+  dplyr::select(FileSpeaker, Adjective, Age, Gender, Variant, Amplified) %>%
+  dplyr::group_by(Variant) %>%
+  dplyr::summarise(VariantN = n()) %>%
+  dplyr::arrange(desc(VariantN)) %>%
+  dplyr::mutate(SumVariants = sum(VariantN)) %>%
+  dplyr::mutate(SumVariantswo0 = sum(VariantN[2:length(VariantN)])) %>%
+  dplyr::mutate(Percentw0 = round(VariantN/SumVariants*100, 1)) %>%
+  dplyr::mutate(Percentwo0 = round(VariantN/SumVariantswo0*100, 1)) %>%
+  dplyr::select(-SumVariants, -SumVariantswo0) %>%
+  dplyr::mutate(Percentwo0 = c(0, Percentwo0[2:length(Percentwo0)]))
+Table1 <- rbind(Table1, c("Total",  sum(Table1$VariantN), 
+                          round(sum(Table1$Percentw0), 1),
+                          round(sum(Table1$Percentwo0), 1)))
+write.table(Table1, "datatables/Table1.txt", row.names= F, sep = "\t")
+Table1
+```
+
+```{r ampause_02_55, echo=T, eval = T, message=FALSE, warning=FALSE}
+Table2 <-  ampaus %>%
+  dplyr::select(FileSpeaker, Adjective, Age, Gender, Variant) %>%
+  dplyr::mutate(really = ifelse(Variant == "really", 1, 0)) %>%
+  dplyr::filter(Variant != "0") %>%
+  dplyr::select(-Variant) %>%
+  dplyr::group_by(Age, Gender) %>%
+  dplyr::summarise(Speakers = length(names(table(FileSpeaker))),
+                   Adjectives = sum(table(Adjective)),
+                   really = sum(really),
+                   Percent= round(really/Adjectives*100, 1))
+Table2b <- data.frame("Total",  "", sum(Table2$Speakers),
+             sum(Table2$Adjectives),
+             sum(Table2$really),
+             round((sum(Table2$really)/sum(Table2$Adjectives)*100), 1))
+colnames(Table2b) <- colnames(Table2)
+Table2 <- dplyr::bind_rows(Table2, Table2b)
+write.table(Table2, "datatables/Table2.txt", row.names= F, sep = "\t")
+Table2
+```
+
+Extract the data set for the regression modelling.
+
+```{r ampause_02_61, echo=T, eval = T, message=FALSE, warning=FALSE}
+reallyaus <- ampaus %>%
+  dplyr::filter(Amplified == 1) %>%
+  dplyr::mutate(really = ifelse(Variant == "really", 1, 0)) %>%
+  dplyr::select(-Amplified, -CleanSpeechUnit, -Variant)
+# save data
+write.table(reallyaus, "datatables/ampaus05_statz.txt", row.names= F, sep = "\t")
+# inspect data
+str(reallyaus)
+```
+
+We have reached the end of part 2 of the analysis.
+

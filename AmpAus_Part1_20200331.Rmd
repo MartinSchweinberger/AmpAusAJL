@@ -1,0 +1,858 @@
+---
+title: "The Amplifier System of Australian English - Part 1"
+author: "Anonymous"
+date: "`r format(Sys.time(), '%Y-%m-%d')`"
+output:
+  bookdown::html_document2: default
+bibliography: bibliography.bib
+link-citations: yes
+---
+
+This document shows an analysis of adjective amplification in Australian English based on the private dialogue section of ICE Australia. 
+
+In a first step, the session is prepared by clearing the workspace, setting options, activating packages and loading relevant functions and defining the path to the data.
+
+```{r ampause_01_01, echo=T, eval = T, message=FALSE, warning=FALSE}
+# clean current workspace
+rm(list=ls(all=T))
+# load packages
+library(stringr)
+# set options
+options(stringsAsFactors = F)
+options(scipen = 999)
+# define image directory
+imageDirectory<-"images"
+# specify path to corpra
+corpus.aus <- "D:\\Uni\\Korpora\\Original\\ICE Australia"
+bio.path <- "D:\\Uni\\Korpora\\Metadata\\ICE Australia biodata/biodataiceaus.txt"
+```
+
+In a next step, we load and process the corpus data.
+
+```{r ampause_01_03, echo=T, eval = T, message=FALSE, warning=FALSE}
+# define files to load
+corpus.files = list.files(path = corpus.aus, pattern = "S1A", all.files = T,
+  full.names = T, recursive = T, ignore.case = T, include.dirs = T)
+# load corpus and start processing
+corpus.tmp <- lapply(corpus.files, function(x) {
+  x <- scan(x, what = "char", sep = "", quote = "", quiet = T, skipNul = T)
+  x <- gsub(" {2,}", " ", x)
+  x <- str_trim(x, side = "both")
+  x <- str_replace_all(x, fixed("\n"), " ")
+  x <- paste(x, sep = " ", collapse = " ")
+  x <- strsplit(gsub("(<I>)", "~\\1", x), "~" )
+  x <- unlist(x)
+  x <- x[2:length(x)]
+  x <- str_replace_all(x, fixed("\\"), "")
+  x <- gsub("<I> ", "", x)
+  } )
+# extract subfiles
+sf <- as.vector(unlist(sapply(corpus.tmp, function(x){
+  x <- length(x)
+  x <- str_replace_all(x, "2","1 2")
+  x <- str_replace_all(x, "3","1 2 3")
+  x <- str_replace_all(x, "4","1 2 3 4")
+  x <- str_replace_all(x, "5","1 2 3 4 5")
+  x <- strsplit(x, " ")
+  })))
+# unlist corpusfiles
+corpus.tmp01 <- unlist(corpus.tmp)
+# extract file names
+fl <- lapply(corpus.files, function(x) {
+  x <- scan(x, what = "char", sep = "", quote = "", quiet = T, skipNul = T)
+  x <- gsub(">.*", ">", x)
+  x <- x[1]
+  })
+nsf <- as.vector(unlist(sapply(corpus.tmp, function(x){
+  x <- length(x)}))) 
+fl <- rep(fl, nsf)
+# create file:subfile$speaker ids
+crpdf <- cbind(fl, sf, corpus.tmp01)
+crpdf[,1] <- str_replace_all(crpdf[,1], fixed(">"),"")
+crpdf[,1] <- str_replace_all(crpdf[,1], fixed("<"),"")
+crpdf1 <- apply(crpdf, 1, function(x){
+  x <- str_replace_all(x[3], fixed("$"), paste(paste(x[1], x[2], sep = ":"), "$", sep = "")) })
+# create list of spekaers with utterances
+flsbspksus <- lapply(crpdf1, function(x){
+  x <- strsplit(gsub("([A-Z][0-9][A-Z])", "~\\1", x), "~" )
+  x <- unlist(x)
+  x <- x[2:length(x)]
+  } )
+flsbspksusv <- as.vector(unlist(flsbspksus))
+fl <- gsub(":.*", "", flsbspksusv)
+sf <- gsub(".*:", "", flsbspksusv)
+sf <- str_replace_all(sf, fixed("$"), "qwertz")
+sf <- gsub("qwertz.*", "", sf)
+spk <- gsub(">.*", "", flsbspksusv)
+spk <- str_replace_all(spk, fixed("$"), "qwertz")
+spk <- gsub(".*qwertz", "", spk)
+su <- gsub("([A-Z][0-9][A-Z]-[0-9]{3,3}:[0-9]\\$[A-Z]{0,2}?{0,1}>)", "", flsbspksusv)
+su <- gsub("<$", "", su)
+su <- str_trim(su, side = "both")
+flsfspk <- paste("<", fl, ":", sf, "$", spk, ">", sep = "")
+su <- strsplit(gsub("(<#>)", "~\\1", su), "~" )
+n <- as.vector(unlist(sapply(su, function(x){
+  x <- length(x)})))
+suv <- as.vector(unlist(su))
+suv <- gsub("\"", "", suv)
+id <- rep(flsfspk, n)
+iceaus <- cbind(id, suv)
+iceaus <- iceaus[iceaus[,2] != "",]
+# inspect data
+str(iceaus); head(iceaus)
+```
+
+In a next step, we clean the corpus data.
+
+```{r ampause_01_05, echo=T, eval = T, message=FALSE, warning=FALSE}
+# create a clean vector of the speech units
+sucl <- gsub("<#>", " ", iceaus[,2])
+sucl <- gsub("<&>.*</&>", " ", sucl)
+sucl <- gsub("<unclear>.*</unclear>", " ", sucl)
+sucl <- gsub("<O>.*</O>", " ", sucl)
+sucl <- gsub("<@>.*</@>", " ", sucl)
+sucl <- gsub("<.{0,1}/{0,1}.{0,1}[A-Z]{0,1}[a-z]{1,}>", " ", sucl)
+sucl <- gsub("<,{1,3}>", " ", sucl)
+sucl <- gsub("\"", " ", sucl)
+sucl <- gsub("</{0,1}\\{[0-9]{0,2}>", " ", sucl)
+sucl <- gsub("</{0,1}[0-9]{0,1}\\[{0,1}\\{{0,1}[0-9]{0,2}>", " ", sucl)
+sucl <- gsub("<\\[/[0-9]{0,2}>", " ", sucl)
+sucl <- gsub("</{0,1}\\[[0-9]{0,2}>", " ", sucl)
+sucl <- gsub("</{0,1}\\}[0-9]{0,2}>", " ", sucl)
+sucl <- gsub("</{0,1}\\][0-9]{0,2}>", " ", sucl)
+sucl <- gsub("</{0,1}\\.[0-9]{0,2}>", " ", sucl)
+sucl <- gsub("</{0,1}[A-Z]{0,2}[0-9]{0,2}>", " ", sucl)
+sucl <- gsub("[A-Z]{0,1}[0-9]{0,1}[A-Z]-[0-9]{1,3} {0,1}[a-z]{0,1} {0,1}[0-9]{0,5}", " ", sucl)
+sucl <- gsub(" {2,}", " ", sucl)
+sucl <- str_trim(sucl, side = "both")
+# additional cleaning
+sucl <- gsub("<&> laughter <&>", " ", sucl)
+sucl <- gsub("#", " ", sucl)
+sucl <- gsub("=", " ", sucl)
+sucl <- gsub("<", " ", sucl)
+sucl <- gsub("&", " ", sucl)
+sucl <- gsub(">", " ", sucl)
+sucl <- gsub("\"", " ", sucl)
+sucl <- gsub("/", "", sucl)
+sucl <- gsub("[", " ", sucl, fixed = T)
+sucl <- gsub("{", " ", sucl, fixed = T)
+#  sucl <- gsub("-", "", sucl, fixed = T)
+sucl <- gsub(" {2,}", " ", sucl)
+sucl <- str_trim(sucl, side = "both")
+corpusausdf <- data.frame(iceaus, sucl)
+# remove empty speech units
+corpusausdf <- corpusausdf[corpusausdf$sucl != "",]
+# inspect data
+#head(corpusausdf)
+flidn <- corpusausdf$id
+flnn <- gsub(":.*", "", corpusausdf$id)
+flnn <- gsub("<", "", flnn)
+sfnn <- gsub("\\$.*", "", corpusausdf$id)
+sfnn <- gsub(".*:", "", sfnn)
+spkn  <- gsub(".*\\$", "", corpusausdf$id)
+spkn  <- gsub(">", "", spkn)
+sunn <- corpusausdf$suv
+sucl <- corpusausdf$sucl
+corpusausdf <- data.frame(flidn, flnn, sfnn, spkn, sunn, sucl)
+# save data to disc
+write.table(corpusausdf, "datatables/iceausamp01_raw.txt", sep = "\t", row.names = F, col.names = T, quote = T)
+# check data
+head(corpusausdf)
+```
+
+In a next step, we part-of-speech tag the cleaned corpus data.
+
+```{r ampause_01_07, echo=T, eval = T, message=FALSE, warning=FALSE}
+# split data into smaller chunks
+pos01 <- corpusausdf$sucl[1:5000]
+pos02 <- corpusausdf$sucl[5001:10000]
+pos03 <- corpusausdf$sucl[10001:15000]
+pos04 <- corpusausdf$sucl[15001:20000]
+pos05 <- corpusausdf$sucl[20001:25000]
+pos06 <- corpusausdf$sucl[25001:nrow(corpusausdf)]
+# reload libraries
+source("D:\\R/POStagObject.R") # for pos-tagging objects in R
+library(NLP)
+library(openNLP)
+library(openNLPmodels.en)
+# pos tagging data
+auspos01 <- POStag(object = pos01)
+auspos01 <- as.vector(unlist(auspos01))
+writeLines(auspos01, con = "datatables/auspos01.txt", sep = "\n", useBytes = FALSE)
+# chunk 2
+auspos02 <- POStag(object = pos02)
+auspos02 <- as.vector(unlist(auspos02))
+writeLines(auspos02, con = "datatables/auspos02.txt", sep = "\n", useBytes = FALSE)
+# chunk 2
+auspos02 <- POStag(object = pos02)
+auspos02 <- as.vector(unlist(auspos02))
+writeLines(auspos02, con = "datatables/auspos02.txt", sep = "\n", useBytes = FALSE)
+# chunk 03
+auspos03 <- POStag(object = pos03)
+auspos03 <- as.vector(unlist(auspos03))
+writeLines(auspos03, con = "datatables/auspos03.txt", sep = "\n", useBytes = FALSE)
+# chunk 04
+auspos04 <- POStag(object = pos04)
+auspos04 <- as.vector(unlist(auspos04))
+writeLines(auspos04, con = "datatables/auspos04.txt", sep = "\n", useBytes = FALSE)
+# chunk 05
+auspos05 <- POStag(object = pos05)
+auspos05 <- as.vector(unlist(auspos05))
+writeLines(auspos05, con = "datatables/auspos05.txt", sep = "\n", useBytes = FALSE)
+# chunk 06
+auspos06 <- POStag(object = pos06)
+auspos06 <- as.vector(unlist(auspos06))
+writeLines(auspos06, con = "datatables/auspos06.txt", sep = "\n", useBytes = FALSE)
+# list pos tagged elements
+postag.files = c("datatables/auspos01.txt", "datatables/auspos02.txt",
+                 "datatables/auspos03.txt", "datatables/auspos04.txt",
+                 "datatables/auspos05.txt", "datatables/auspos06.txt")
+# load pos tagged elements
+auspos <- sapply(postag.files, function(x) {
+  x <- scan(x, what = "char", sep = "\n", quote = "", quiet = T, skipNul = T)
+  x <- gsub(" {2,}", " ", x)
+  x <- str_trim(x, side = "both")
+  x <- str_replace_all(x, fixed("\n"), " ")
+})
+# unlist pos tagged elements
+corpusausdf$auspos <- unlist(auspos)
+```
+
+Next, we perform the concordancing and find all adjectives in the cleaned corpus data.
+
+```{r ampause_01_09, echo=T, eval = T, message=FALSE, warning=FALSE}
+# extract number of adjs per line
+pstggd <- corpusausdf$auspos
+lpstggd <- strsplit(pstggd, " ")
+nlpstggd <- as.vector(unlist(sapply(lpstggd, function(x){
+  x <- x[grep("[A-Z]{0,1}[a-z]{1,}\\/JJ[A-Z]{0,2}", x)]
+  x <- length(x) } )))
+rp <- nlpstggd
+rp <- ifelse(rp == 0, 1, rp)
+# load function for concordancing
+source("D:\\R/ConcR_2.3_loadedfiles.R")
+# set parameters for concordancing
+pattern <- "[A-Z]{0,1}[a-z]{1,}\\/JJ[A-Z]{0,2}"
+context <- 50
+# extract all adjectives (concordance)
+concjjaus <- ConcR(corpusausdf$auspos, pattern, context, all.pre = FALSE)
+# repeat rows in data frame as often as there are adjectives in it (if 0 adj, repeat once)
+corpusausadjdf <- corpusausdf[rep(seq(nrow(corpusausdf)), rp),]
+# combine data sets
+corpusausadj <- data.frame(1:nrow(corpusausadjdf), corpusausadjdf, concjjaus)
+# remove rows without Tokens
+ampaus <- corpusausadj[is.na(corpusausadj$Token) == F,]
+# add clean column names
+colnames(ampaus) <- c("ID", "FileSpeaker", "File", "Subfile", 
+                      "Speaker", "SpeechUnit", "CleanSpeechUnit",
+                      "PosTaggedSpeechUnit", "OriginalString", 
+                      "PreContext", "Adjective", "PostContext")
+# clean adjectives
+ampaus$Adjective <- str_replace_all(ampaus$Adjective, fixed("/JJ"), "")
+# add Vraiant column
+ampaus$Variant <- gsub(".* ", "", str_trim(ampaus$PreContext, side = "both")) 
+# inspect data
+nrow(ampaus); ampaus
+```
+
+Now, we load the biodata and combine it with the concordances.
+
+```{r ampause_01_11, echo=T, eval = T, message=FALSE, warning=FALSE}
+# read in biodata
+bio <- read.table(bio.path, sep = "\t", header=TRUE, quote = "")
+# inspect data
+head(bio)
+```
+
+We continue by cleaning the biodata.
+
+```{r ampause_01_13, echo=T, eval = T, message=FALSE, warning=FALSE}
+ConversationType <- bio %>%
+  dplyr::select(file, subfile, gender) %>%
+  dplyr::group_by(file, subfile) %>%
+  dplyr::mutate(Men = ifelse(gender == "M", 1, 0),
+                Women = ifelse(gender == "F", 1, 0)) %>%
+  dplyr::ungroup() %>%
+  unique() %>%
+  dplyr::group_by(file, subfile) %>%
+  dplyr::summarise(ConversationType = sum(Men)+sum(Women)) %>%
+  dplyr::mutate(ConversationType = ifelse(ConversationType == 1, "SameGender", 
+                                   ifelse(ConversationType == 2, "MixedGender",
+                                          "other")))
+# combine data sets
+bio <- join(bio, ConversationType, by = c("file", "subfile"), type = "left")
+# clean column names
+bio <- bio %>%
+  dplyr::rename(File = file,
+                Subfile = subfile,
+                Speaker = spk,
+                Gender = gender,
+                AgeOriginal = age,
+                Age = agecat,
+                AudienceSize = no_of_speakers,
+                Education = education,
+                Occupation = occupation,
+                L1 = mothertongue,
+                Date = date_of_recording) %>%
+     dplyr::select(-number_of_subtexts, -otherlanguages, -surname, 
+                 -forename, -no_of_participants, -audience, 
+                 -audience_size, -wordcount, -place_of_recording, 
+                 -category, -subject, -version, -free_comments, 
+                 -consent, -communicative_situation, -tape_number, 
+                 -dubbed, -transcribed, -proof_allocation,
+                 -proofed_i, -recorder, -organising_body, -video_number, 
+                 -program, -channel, -mode, -tv_radio, -source_title, 
+                 -comments, -address_1, -free_comments_1, -nationality,
+                 -birthplace)
+# inspect data
+bio
+```
+
+Now, we combine the bio data with the condorcande data.
+
+```{r ampause_01_15, echo=T, eval = T, message=FALSE, warning=FALSE}
+# join data
+ampaus <- join(ampaus, bio, by = c("File", "Subfile", "Speaker"), type = "left")
+# inspect data
+ampaus
+```
+
+Next, we determine if an amplifier occurred before an adjective in the cleaned corpus data and code the syntactic function of the adjective, the genre in which the adjective occurred.
+
+```{r ampause_01_17, echo=T, eval = T, message=FALSE, warning=FALSE}
+# define amplifiers
+amplifiers <- c("absolutely", "actually", "aggressively", 
+                "amazingly", "appallingly", "awfully", 
+                "badly", "bloody", "certainly", "clearly",
+                "dead", "completely", "considerably", 
+                "crazy", "decidedly", "definitely",  "distinctly", 
+                "dreadfully", "enormously", "entirely", "especially", 
+                "exactly", "exceedingly", "exceptionally", 
+                "excruciatingly", "extraordinarily", "extremely",
+                "fiercely", "firmly", "frightfully", "fucking", 
+                "fully", "genuinely", "greatly",
+                "grossly", "heavily", "highly", "hopelessly", 
+                "horrendously", "hugely",
+                "immediately", "immensely", "incredibly", 
+                "infinitely", "intensely", "irrevocably",
+                "mad", "mega", "mighty", "most", "much", 
+                "obviously", "openly", "overwhelmingly", "particularly", 
+                "perfectly", "plenty", "positively", 
+                "pretty", "profoundly", "purely", "real", "really", 
+                "remarkably", "seriously", 
+                "shocking",   "significantly", "so", 
+                "specially", "specifically", "strikingly",
+                "strongly", "substantially", "super", "surely", 
+                "terribly", "terrifically", 
+                "total", "totally", "traditionally", "true", 
+                "truly", "ultra", "utterly", "very",
+                "viciously", "wholly", "wicked", "wildly")
+# clean ice aus data
+ampaus <- ampaus %>%
+  dplyr::mutate(Function = str_trim(PostContext, side = "both")) %>%
+  dplyr::mutate(Function = tolower(Function)) %>%
+  dplyr::mutate(Function = gsub(" {2,}", " ", Function)) %>%
+  dplyr::mutate(Function = gsub("/jj[a-z]{0,2} ", "qwertz", Function)) %>%
+  dplyr::mutate(Function = gsub("/rb[a-z]{0,2} ", "qwertz", Function)) %>%
+  dplyr::mutate(Function = gsub(" .*", "", Function)) %>%
+  dplyr::mutate(Function = gsub("qwertz", " ", Function)) %>%
+  dplyr::mutate(Function = gsub(".*/nn.*", "Attributive", Function)) %>%
+  dplyr::mutate(Function = ifelse(Function == "Attributive", "Attributive", "Predicative"))
+nrow(ampaus)
+```
+
+```{r ampause_01_19, echo=T, eval = T, message=FALSE, warning=FALSE}
+# register
+ampaus <- ampaus %>%
+  dplyr::mutate(Genre = gsub("_.*", "", File)) %>%
+  dplyr::mutate(Genre = gsub("-.*", "", Genre)) %>%
+  dplyr::mutate(Genre = ifelse(Genre == "S1A", "PrivateDialogue", Genre)) %>%
+  dplyr::mutate(Genre = ifelse(Genre == "S1B", "PublicDialogue", Genre)) %>%
+  dplyr::mutate(Genre = ifelse(Genre == "S2A", "UnscriptedMonologue", Genre)) %>%
+  dplyr::mutate(Genre = ifelse(Genre == "S2B", "ScriptedMonologue", Genre)) %>%
+  dplyr::mutate(Genre = ifelse(Genre == "PrivateDialogue", "PrivateDialogue", "remove")) %>%
+  dplyr::filter(Genre != "remove")
+# shorten post Context
+ampaus$PostContext <- substr(ampaus$PostContext, 1, ifelse((nchar(ampaus$PostContext)+25) <25, maampaus(nchar(ampaus$PostContext)), 25))
+# pre Context
+ampaus$PreContext <- str_trim(ampaus$PreContext, side = "both")
+ampaus$PreContextLong <- ampaus$PreContext
+ampaus$PreContextLong <- substr(ampaus$PreContextLong, ifelse(nchar(ampaus$PreContextLong)-25 <=0, 1, 
+                                                              nchar(ampaus$PreContextLong)-25), nchar(ampaus$PreContextLong))
+ampaus$PreContext <- gsub(".* ", "", ampaus$PreContext)
+# amplifier variant
+ampaus$Variant <- gsub("\\/.*", "", ampaus$Variant)
+ampaus$Variant <- tolower(ampaus$Variant)
+ampaus$Variant <- ifelse(ampaus$Variant %in% amplifiers, ampaus$Variant, "0")
+# amplified y/n
+ampaus$Amplified <- ifelse(ampaus$Variant == "0", 0, 1) 
+# adjective
+ampaus$Adjective <- tolower(ampaus$Adjective)
+# recode age
+# recode age 
+ampaus <- ampaus %>%
+  dplyr::mutate(Age = ifelse(Age == "26-30", "26-40",
+                      ifelse(Age == "31-40", "26-40",
+                      ifelse(Age == "41-50", "41-80",
+                      ifelse(Age == "51-80", "41-80", Age)))))
+# calculate adjective frequency
+ampaus <- ampaus %>%
+  dplyr::group_by(Adjective, Age) %>%
+  dplyr::mutate(AdjFrequency = n()) %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(Age) %>%
+  dplyr::mutate(AllAdjs = n()) %>%
+  plyr::mutate(Frequency = round(AdjFrequency/AllAdjs*100, 2)) %>%
+  dplyr::select(-AllAdjs, -AdjFrequency)
+# inspect data
+ampaus
+```
+
+Now, we identify items that need to be removed.
+
+```{r ampause_01_21, echo=T, eval = T, message=FALSE, warning=FALSE}
+# define forms that require removal
+much <- c("much")
+sups <- c(".*most.*", ".*more.*") 
+negs <- c(".*not.*", ".*never.*", ".*n't.*")
+downtoners <- c(".*sort/.*", ".*kind/.*", ".* bit/.*", 
+                ".*somewhat.*", ".*fairly.*", 
+                ".*rather.*", ".*reasonably.*", ".*slightly.*",
+                ".*comparatively.*", ".*semi.*", 
+                ".*relatively.*", ".*little.*", ".*somehow.*", 
+                ".*almost.*", ".*partly.*", 
+                ".*hardly.*", ".* less.*", ".*barely.*", ".* just/.*")
+specialforms <- c(".* too.*", ".*quite.*")
+PostContextdowntoners <- c(".*enough.*")
+nonpropadj <- c("only", "much", "many", "cheaper", "cheaperr", "bests", 
+                "larger", "uhr")
+# check length of dataset
+ampaus; nrow(ampaus)
+```
+
+Next, we remove adjectives from the data if they represented comparative or superlative froms, are modified by downtoners.
+
+```{r ampause_01_23, echo=T, eval = T, message=FALSE, warning=FALSE}
+# find items to be removed
+muchidx <- unique(grep(much, ampaus$PreContextLong, value=F))
+supsidx <- unique(grep(paste(sups,collapse="|"), ampaus$PreContextLong, value=F))
+negsidx <- unique(grep(paste(negs,collapse="|"), ampaus$PreContextLong, value=F))
+downtonersidx <- unique(grep(paste(downtoners,collapse="|"), ampaus$PreContextLong, value=F))
+specialformsidx <- unique(grep(paste(specialforms,collapse="|"), ampaus$PreContextLong, value=F))
+PostContextdowntonersidx <- unique(grep(paste(PostContextdowntoners,collapse="|"), ampaus$PostContext, value=F))
+nonpropadjidx <- unique(grep(paste(nonpropadj,collapse="|"), ampaus$Adjective, value=F))
+# combine indices
+idxs <- unique(c(muchidx, supsidx, negsidx, downtonersidx, 
+                 specialformsidx, PostContextdowntonersidx, 
+                 nonpropadjidx))
+# remove forms that require removal
+ampaus <- ampaus[-idxs,]
+# remove empty values
+ampaus <- ampaus[!ampaus$Variant == "", ]
+# save raw data to disc
+write.table(ampaus, "datatables/ampaus02_wo_neg.txt", sep = "\t", row.names = F)
+# inspect data
+ampaus
+```
+
+Next, we code for priming.
+
+```{r ampause_01_25, echo=T, eval = T, message=FALSE, warning=FALSE}
+# code priming
+prim1 <- c(rep(0, 1), ampaus$Variant[1:length(ampaus$Variant)-1])
+prim2 <- c(rep(0, 2), ampaus$Variant[1:(length(ampaus$Variant)-2)])
+prim3 <- c(rep(0, 3), ampaus$Variant[1:(length(ampaus$Variant)-3)])
+primtb <- cbind(ampaus$Variant, prim1, prim2, prim3)
+ampaus$Priming <- as.vector(unlist(apply(primtb, 1, function(x){
+  x <- ifelse(x[1]== "0" , "NotPrimed",
+              ifelse(x[1] == x[2] | x[1] == x[3] | x[1] == x[4], "Primed", "NotPrimed"))
+})))
+```
+
+Next, we remove items that were not intensified by at least two different amplifier variants.
+
+```{r ampause_01_27, echo=T, eval = T, message=FALSE, warning=FALSE}
+# remove items that were not intensified by a minimum of 2 intensifier variants
+nrow(ampaus)
+pintadjtb <- table(ampaus$Adjective, ampaus$Variant)
+pintadjtb <- pintadjtb[,2:ncol(pintadjtb)]
+pintadjtb2 <- apply(pintadjtb, 1, function(x){
+  x <- ifelse(x > 1, 1, x)})
+pintadjtb3 <- colSums(pintadjtb2)
+pintadjschildes <- names(pintadjtb3)[which(pintadjtb3 >=2 )]
+ampaus <- ampaus[ampaus$Adjective %in% pintadjschildes, ]
+# inspect data
+str(ampaus)
+```
+
+Next, we remove adjectives that are not tagged correctly.
+
+```{r ampause_01_29, echo=T, eval = T, message=FALSE, warning=FALSE}
+# inspect adjectives
+names(table(ampaus$Adjective))
+```
+
+
+```{r ampause_01_31, echo=T, eval = T, message=FALSE, warning=FALSE}
+# create vector with false adjectives
+rmvadj <- c("uhr", "like")
+ampaus$remove <- ifelse(ampaus$Adjective %in% rmvadj, "remove", ampaus$Adjective)
+ampaus <- ampaus[ampaus$remove != "remove",]
+ampaus$remove <- NULL
+# save raw data to disc
+write.table(ampaus, "datatables/ampaus03_semiclean.txt", sep = "\t", row.names = F)
+# inspecta data
+nrow(ampaus); length(table(ampaus$Adjective)); head(ampaus)
+```
+
+We now remove superfluous columns.
+
+```{r ampause_01_33, echo=T, eval = T, message=FALSE, warning=FALSE}
+# remove superfluous columns
+ampaus <- ampaus %>%
+  dplyr::select(-ID, -File, -Subfile, -Speaker, -SpeechUnit, 
+  -PosTaggedSpeechUnit, -OriginalString, -Date, -PreContext, -Genre,
+  -PostContext, -PreContextLong, -AgeOriginal, -Education, -L1)
+# inspect data
+ampaus
+```
+
+In a next step, we clean the occupation variable and harmonize variable levels.
+
+```{r ampause_01_35, echo=T, eval = T, message=FALSE, warning=FALSE}
+# recode occupation
+# Academic, clerical, managerial professions
+acmp <- c("Academic", "Accountant", "Actor", "Adm Assistant", 
+          "Admin.Asst. Secretary", "Architect", "Artist", 
+          "Audio-visual Installer", 
+          "BA Student", "Bank Teller", "Barrister", "Barrister/journalist", 
+          "Burgular Alarm Surveyor", "Campus worker", "Cashier", "Cattle judge", 
+          "Chef/Scientific Officer", "Chief librarian of ABC reference library.", 
+          "Clergy", "Clerical Admin", "Clerk", 
+          "Co-ordinator, Sports Medicine Federation", 
+          "Commemtator", "Commentator", 
+          "Commissioner for Federal Human Rights Commission.", 
+          "Commonwealth Bank Manager", "Computer Analyst", "Computer Operator", 
+          "Computer System Manager", "Consultant", 
+          "Coordinator of course at Monash Law School", "Dental Assistant",
+          "Dentist", 
+          "Desktop Publisher", "Director", "Doctor", "Editor", 
+          "Editorial Officer", 
+          "Education Consultant", "Electrial Linesman", "Electrical engineer",
+          "Engineer", 
+          "Entrepreneur", "Ex-Governor-General", "Ex-Prime Minister", 
+          "Exec Dir, Aust School Sports Council", "Executive Secretary", 
+          "Federal Treasurer (Member for Fremantle WA) (ALP)", 
+          "Financial Manager", 
+          "Financial Planner", "First Aid instructor", "Head,Careers Service", 
+          "High School Teacher", "Home duties", "Home Duties", "Home Economist", 
+          "Home Maker", "House Wife", "Housewife", "Industrial Designer", 
+          "Insurance contractor", "International Lawyer", "Investment advisor", 
+          "Journalist", "Jurnalist", "Lawyer", "Leader of Opposition", 
+          "Lecturer", 
+          "Legal Secretary", "Legal Tutor", "Manager", 
+          "Manager Finalcial Services", 
+          "Mass Comm Student", "Member for Blaxland NSW (ALP) - Prime Minister", 
+          "Member for Burdekin Qld (NP)", "Member for Cairns Qld (ALP)", 
+          "Member for Caloundra Qld (LP)", "Member for Chatsworth Qld (ALP)", 
+          "Member for Currumbin (ALP)", "Member for Drummoyne NSW (ALP)", 
+          "Member for Flinders Vic (LP)", "Member for Gregory Qld (NP)", 
+          "Member for Kalgoorlie WA (ALP)", "Member for Lismore NSW (NP)", 
+          "Member for McKellar NSW (LP)", "Member for McPherson Qld (LP)", 
+          "Member for Mirani Qld (NP)", "Member for Moreton Qld (ALP)", 
+          "Member for Mundingburra (Qld)", "Member for Tamworth NSW (Ind)", 
+          "NSW Employers Association", "NSW Labour Council", 
+          "Nurse", "Nursing Student", "Park Ranger", "Pensioner", 
+          "Personel Manager", 
+          "Pre-school Teacher", 
+          "President of Australian Federation of Organisations for Aids.", 
+          "Primary School Teacher", "Prime Minister", "Producer's assistant", 
+          "Professor", "Psychologist", "Public Servant", "Remedial Therapist", 
+          "Reporter", "Reporter.", "Res Asst/Pilot", "Research Assistant", 
+          "Research Assitant", "Researcher", "Retired manager", 
+          "Sales Manager", "School student", "School studnet", "Secretary", 
+          "Senator", "Senator (Qld) (NP)", "Senator (W.A.) (LP)", 
+          "Senator (WA) (ALP)", 
+          "Senator Vic (Minister for Foreign Affairs) (ALP)", "Senior Lecturer", 
+          "Show host", "Show host.", "Snr Technical Officer", "Solicitor", 
+          "Solicitor General", 
+          "Speaker of the House - Member for Cunningham NSW (ALP)", 
+          "Sport Co-ordinator, Australian Sports Commission", 
+          "Stucent", "student", 
+          "Student", "Student and sales assistant", 
+          "Student/Assistant Accountant", "Student/Parttime Sales Assistant", 
+          "Students", "TAFE Teacher", "Teacher", "Trainee accountant", 
+          "Travel Agent", "Tutor", "Unemployed ex Agent-General", 
+          "Waitress/Millinery Student", "Wine grower", "Writer")
+# Skilled Manual Labour
+sml <- c("Hairdresser", "Policemen", "Student and Kitchen Hand", "Student nurse", 
+         "Telephonist", "Trainer", "Wildlife conservationist", 
+         "Wood Machinest", "Zoo keeper.")
+# unclassifiable
+NAN <- c("Not known", "Retired", "Unemployed")
+# reclassify
+ampaus <- ampaus %>%
+  dplyr::mutate(Occupation = ifelse(Occupation %in% acmp, "ACMP",
+              ifelse(Occupation %in% sml, "SML", NA)))
+```
+
+We now add the coding of the gradability of adjectives which is based on the COCA.
+
+```{r ampause_01_37, echo=T, eval = T, message=FALSE, warning=FALSE}
+# load Gradability data (derived from COCA)
+gradability <- read.delim("D:\\Uni\\Projekte\\09-GradabilityOfAdjectives/Gradability.txt", sep = "\t", header = T, quote = "", skipNul = T)
+ampaus$Gradability <- ifelse(ampaus$Adjective %in% gradability$Adjective, gradability$Beta, 1)
+# inspect data
+head(ampaus)
+```
+
+Now, we add the semantic coding. The semantic types are taken from Tagliamonte (2008) who base her classification on Dixon (1977).
+
+The semantic classes coded here are:
+* dimension = semdim (e.g. big, large, little, small, long, short, wide, narrow, thick)
+* difficulty = semdif (e.g. difficult, simple)
+* physical property = (e.g. hard, soft, heavy, light, rough, smooth, hot, sweet)
+* color = semcol (e.g. black, white, red)
+* human propensity: semhup (e.g. jealous, happy, kind, clever, generous, gay, rude)
+* age = semage (e.g. new, young, old) 
+* value (e.g. good, bad, proper, perfect, excellent, delicious, poor), 
+* speed Speed (fast, quick, slow)
+* position (e.g. right, left, near, far)
+* other
+
+```{r ampause_01_39, echo=T, eval = T, message=FALSE, warning=FALSE}
+# load data
+code1 <- read.delim("datatables/semcodecg1.txt", sep = "\t", 
+                    header = T, skipNul = T)
+code2 <- read.delim("datatables/semcodedjm1.txt", sep = "\t", 
+                    header = T, skipNul = T)
+code3 <- read.delim("datatables/semcodedl1.txt", sep = "\t", 
+                    header = T, skipNul = T)
+code4 <- read.delim("datatables/semcodedm1.txt", sep = "\t", 
+                    header = T, skipNul = T)
+code5 <- read.delim("datatables/semcodedma1.txt", sep = "\t", 
+                    header = T, skipNul = T)
+code6 <- read.delim("datatables/semcodedv1.txt", sep = "\t", 
+                    header = T, skipNul = T)
+code7 <- read.delim("datatables/semcodedjw1.txt", sep = "\t", 
+                    header = T, skipNul = T)
+# order data sets
+code1 <- code1[order(code1$Id),]
+code2 <- code2[order(code2$Id),]
+code3 <- code3[order(code3$Id),]
+code4 <- code4[order(code4$Id),]
+code5 <- code5[order(code5$Id),]
+code6 <- code6[order(code6$Id),]
+code7 <- code6[order(code7$Id),]
+# repair adjectives in code1
+code3$Adjective <- code1$Adjective
+# combine tables
+semcode <- rbind(code1, code2, code3, code4, code5, code6, code7)
+# convert coding into numeric values
+semcode[,3:12] <- t(apply(semcode[,3:12], 1, function(x) {
+  #  x <- ifelse(x == "" | is.na(x) == T, 0, 1)}))
+  x <- ifelse(x == "" | x == "?"| is.na(x) == T, 0, 1)}))
+# convert into data frame
+semcode <- as.data.frame(semcode)
+# add column names
+colnames(semcode)[3:12] <- c("Dimension", "Difficulty", 
+                             "PhysicalProperty", "Color",
+                             "HumanPropensity", "Age", "Value", 
+                             "Speed", "Position", "Other")
+# load library
+library(dplyr)
+AdjectiveSemantics <- semcode %>%
+  dplyr::group_by(Adjective) %>%
+  na.omit() %>%
+  dplyr::summarize(Dimension = sum(Dimension), Difficulty = sum(Difficulty),
+                   PhysicalProperty = sum(PhysicalProperty), Color = sum(Color),
+                   HumanPropensity = sum(HumanPropensity), Age = sum(Age),
+                   Value = sum(Value), Speed = sum(Speed),
+                   Position = sum(Position), Other = sum(Other)) %>%
+  dplyr::mutate(OverallScore = rowSums(.[,2:11])) %>%
+  dplyr::mutate(Maximum = do.call(pmax, (.[,2:11]))) %>%
+  dplyr::mutate(Certainty = Maximum/OverallScore*100)
+AdjectiveSemantics <- AdjectiveSemantics %>%
+  dplyr::mutate(Category = colnames(AdjectiveSemantics[2:11])[apply(AdjectiveSemantics[2:11],1,which.max)])
+# create vectors
+Age <- as.vector(unlist(AdjectiveSemantics %>%
+                          dplyr::filter(Category == "Age") %>% 
+                          select(Adjective)))
+Color <- as.vector(unlist(AdjectiveSemantics %>%
+                            dplyr::filter(Category == "Color") %>%
+                            select(Adjective)))
+Difficulty <- as.vector(unlist(AdjectiveSemantics %>%
+                                 dplyr::filter(Category == "Difficulty") %>%
+                                 select(Adjective)))
+Dimension <- as.vector(unlist(AdjectiveSemantics %>%
+                                dplyr::filter(Category == "Dimension") %>%
+                                select(Adjective)))
+HumanPropensity <- as.vector(unlist(AdjectiveSemantics %>%
+                                      dplyr::filter(Category == "HumanPropensity") %>% 
+                                      select(Adjective)))
+PhysicalProperty <- as.vector(unlist(AdjectiveSemantics %>%
+                                       dplyr::filter(Category == "PhysicalProperty") %>% 
+                                       select(Adjective)))
+Position <- as.vector(unlist(AdjectiveSemantics %>%
+                               dplyr::filter(Category == "Position") %>% select(Adjective)))
+Speed <- as.vector(unlist(AdjectiveSemantics %>%
+                            dplyr::filter(Category == "Speed") %>%
+                            select(Adjective)))
+Value <- as.vector(unlist(AdjectiveSemantics %>%
+                            dplyr::filter(Category == "Value") %>%
+                            select(Adjective)))
+# age
+semage <- c("actual", "adolescent", "aged", "ancestral", "ancient", 
+            "annual", "archaeological", "archaic", "biographical",
+            "contemporary", "elderly", "foster", "generational", 
+            "historic", "historical", "immature", "junior", "late", 
+            "mature", "medieval", "modern", "old", "oldfashioned", 
+            "outdated", "past", "preliminary", "present", "primary", 
+            "prime", "prior", "puerile", "recent", "seasonal",
+            "senile", "senior", "temporary", "topical", "veteran", 
+            "young", "youthful")
+# color
+semcol <- c("colourful", "darkened", "pinkish", "reddish", "black", 
+            "blue", "brown", "coloured", "dark", "gold", "golden", 
+            "gray", "green", "grey", "lime", "marine", "orange", 
+            "pink", "purple", "red", "silver", "white", "yellow")
+semdif <- c("basic", "complicated", "difficult", "easy", "elusive", 
+            "facile", "precarious", "risky", "simple", "stressful", 
+            "tricky", "twisted", "unpromising")
+# dimension
+semdim <- c("adjacent", "angled", "arctic", "back", "backward", "big", 
+            "bottom", "brief", "bright", "broad", "central", "centralised",
+            "centred", "close", "compact", "deep", "diagonal", 
+            "direct", "distant", "distorted", "down", "downward", 
+            "early", "east", "easterly", "eastern", "endemic", "endless",
+            "equatorial", "european", "ewen", "far", "few", "first", "flat", 
+            "foreign", "foremost", "forthcoming", "forward", "free", 
+            "front", "frontal", "further", "geographical", "giant", 
+            "gigantic", "global", "grand", "half", "halved", "halving", 
+            "high", "horizontal", "huge", "inner", "inside", "internal",
+            "international", "large", "last", "latter", "left", "linear",
+            "little", "local", "locating", "long", "low", "massive", 
+            "micro", "mid", "middle", "minimal", "minimalist", 
+            "minimum", "minor", "misleading", "narrow", "national", 
+            "nationwide", "native", "near", "nearby", "next", "north",
+            "northern", "off", "onward", "orientated", "outside", "over",
+            "overhanging", "overlapping", "pacific", "parallel", "paramount",
+            "peripheral", "petite", "polar", "proportional", "provincial", 
+            "public", "rear", "regional", "remote", "reverse", "round", 
+            "rural", "separate", "separated", "short", "sizeable", "slight",
+            "small", "south", "southern", "southwest", "spinal", "square",
+            "steep", "stratospheric", "suburban", "super", "tall", "teensy", 
+            "terminal", "territorial", "thick", "thickened", "thin", 
+            "tight", "tiny", "titanic", "top", "torrential", "touring",
+            "tremendous", "under", "universal", "unseeded", "upward", 
+            "urban", "urbanised", "vast", "vertical", "warped", "wee", 
+            "west", "western", "wide", "widespread")
+semhup <- c("able", "abrasive", "abusive", "academic", "accomplished",
+            "advanced", "adverse", "afraid", "aggressive", "aimless", 
+            "amused", "amusing", "analytical", "angry", "anxious",
+            "appreciative", "apprehensive", "ashamed", "astute", "aware",
+            "benevolent", "besetting", "blind", "bold", "bossy", 
+            "brave", "brutal", "busy", "callous", "candid", "capable", 
+            "careful", "challenging", "charismatic", "cheated", "clever",
+            "cocky", "compelling", "competent", "competitive", 
+            "concerned", "confident", "consultative", "convinced", 
+            "creative", "cross", "cruel", "cute", 
+            "cynical", "delighted", "depressed", "despairing", 
+            "desperate", "despondent", "disappointed", 
+            "dodgy", "dotty", "dubious", "dull", "dumb", "eager", 
+            "elitist", "embarrassed", "emotional", "encouraging", 
+            "entertaining", "enthusiastic", "erudite", "evil", "excited",
+            "fanatic", "fearful", "ferocious", 
+            "fierce", "foolish", "forceful", "fortunate", "fraudulent",
+            "friendly", "frustrated", "fun", 
+            "funny", "furious", "generous", "gifted", "glad", 
+            "goodhearted", "gracious", "grateful", 
+            "grim", "gross", "gutless", "hairy", "hapless", "happy",
+            "hopeful", "hopeless", "horrible", "hostile", 
+            "hysterical", "ignorant", "ill", "imperative", 
+            "incompetent", "inexorable", "inexperienced", 
+            "infallible", "informed", "insatiable", "insidious", 
+            "intellectual", "intelligent", "intriguing", 
+            "inventive", "jealous", "joyful", "keen", "lazy", 
+            "learned", "learnt", "loath", "lone", "lonely", 
+            "lucky", "lunatic", "mad", "mean", "minded", "motivating", 
+            "nasty", "nervous", "nice", 
+            "optimistic", "passionate", "patronising", "pessimistic", 
+            "pleased", "polite", "poor", 
+            "preachy", "prepared", "presumptuous", "primitive", 
+            "procedural", "professional", "promotional", 
+            "proud", "prudential", "psycho", "puzzled", "rapt", 
+            "rational", "regretful", "relentless", 
+            "resourceful", "respected", "rich", "romantic", "rowdy", 
+            "rude", "sad", "sane", "sarcastic", 
+            "satisfied", "satisfying", "scared", "sceptical", 
+            "selective", "selfish", "sensitive", 
+            "sentimental", "sick", "silly", "skilful", "skilled", 
+            "smart", "snotty", "sociable", "sophisticated", 
+            "sorry", "sovereign", "spiteful", "staunch", "strategic", 
+            "strict", "stubborn", "stupid", 
+            "suffering", "superior", "supportive", "suspicious", 
+            "tactic", "talented", "technical", "treacherous", 
+            "troubled", "unable", "unanswered", "unaware", "uncaring",
+            "ungrateful", "unhappy", "unsmiling", 
+            "unsocial", "upset", "valiant", "valid", "vengeful", 
+            "vile", "wicked", "willing", "wise", "witty", "worried")
+# physical property
+semphy <- c("cheap", "clear", "cold", "comfortable", "cool", "dark", 
+            "different", "dry", "flexible", "hard", 
+            "heavy", "hot", "light", "neat", "obvious", "quick", 
+            "quiet", "real", "same", "scarce", "similar", 
+            "slow", "strong", "sweet", "tidy", "warm")
+# Value
+semval <- c("amazing", "appropriate", "awful", "bad", "beautiful", 
+            "bizarre", "boring", "brilliant", 
+            "competitive", "counterproductive", "dangerous", "easy", 
+            "effective", "efficient", "essential", "excellent", 
+            "exciting", "expensive", "fantastic", "fat", "good", 
+            "great", "important", "inadequate", "interesting", 
+            "new", "original", "painful", "pathetic", "popular", 
+            "positive", "relevant", "ridiculous", "right", 
+            "scary", "serious", "simple", "special", "strange", 
+            "sure", "terrible", "tough", "trendy", "true", "ugly",  
+            "uncomfortable", "unrealistic", "unusual", "useful", 
+            "useless", "weird", "wealthy", "worser", "worthwhile", 
+            "wrong", "yummy")
+# add semantic type classification
+# add semantic category to data
+ampaus <- ampaus %>%
+  dplyr::mutate(SemanticCategory = ifelse(Adjective %in% Age | Adjective %in% semage, "Age",
+                                   ifelse(Adjective %in% Color | Adjective %in% semcol, "Color",
+                                   ifelse(Adjective %in% Difficulty | Adjective %in% semdif, "Difficulty",
+                                   ifelse(Adjective %in% Dimension | Adjective %in% semdim, "Dimension",
+                                   ifelse(Adjective %in% HumanPropensity | Adjective %in% semhup,
+                                          "HumanPropensity",
+                                   ifelse(Adjective %in% PhysicalProperty | Adjective %in% semphy,
+                                          "PhysicalProperty",
+                                   ifelse(Adjective %in% Position, "Position",
+                                   ifelse(Adjective %in% Speed, "Speed",
+                                   ifelse(Adjective %in% Value | Adjective %in% semval, "Value",
+                                          "Other"))))))))))
+# table sem class of tokens
+table(ampaus$SemanticCategory)
+```
+
+Now, we code the emotionality of adjectives.
+
+```{r ampause_01_41, echo=T, eval = T, message=FALSE, warning=FALSE}
+# load library
+library(syuzhet)
+# code emotion
+class_emo <- get_nrc_sentiment(ampaus$Adjective)
+# process sentiment
+ampaus$Emotionality <- as.vector(unlist(apply(class_emo, 1, function(x){
+  x <- ifelse(x[9] == 1, "NegativeEmotional",
+              ifelse(x[10] == 1, "PositiveEmotional", "NonEmotional")) } )))
+# revert order of factor Emotionality
+ampaus$Emotionality <- factor(ampaus$Emotionality, levels = c("NonEmotional", "NegativeEmotional", "PositiveEmotional"))
+# save raw data to disc
+write.table(ampaus, "datatables/ampaus04_clean.txt", sep = "\t", row.names = F)
+# inspect data
+nrow(ampaus); ampaus
+```
+
+We have reached the end of part 1 of the analysis.
