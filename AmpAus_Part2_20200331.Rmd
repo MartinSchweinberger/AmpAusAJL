@@ -105,6 +105,7 @@ pd
 
 ```{r ampause_02_09, echo=T, eval = T, message=FALSE, warning=FALSE}
 # p1
+library(tidyr)
 pd1 <- pd %>%
   dplyr::filter(Amplified == 100) %>%
   dplyr::mutate(Variant = as.factor(Variant)) %>%
@@ -114,8 +115,20 @@ pd1 <- pd %>%
   dplyr::group_by(Age, Function) %>%
   dplyr::mutate(Sum = sum(Frequency)) %>%
   dplyr::mutate(Percent = round(Frequency/Sum*100, 1)) %>%
+  dplyr::select(-Sum, -Frequency) %>%
   dplyr::group_by(Variant)
-pd1 
+pd1 <- pd1 %>%
+  tidyr::spread(Variant, Percent) %>%
+  tidyr::replace_na(list(other = 0,
+                         pretty = 0,
+                         really = 0,
+                         so = 0,
+                         very = 0)) %>%
+  tidyr::gather(Variant, Percent, other:very)
+# save data
+write.table(pd1, "datatables/pd1.txt", row.names= F, sep = "\t")
+# inspect data
+pd1
 ```
 
 ```{r ampause_02_11, echo=T, eval = T, message=FALSE, warning=FALSE}
@@ -148,7 +161,27 @@ p1 <- ggplot(pd1, aes(x = reorder(Age, desc(Age)), y = Percent, group = Variant,
 p1
 ```
 
+We now extract the lexical diversity scores and begin with extracting example values.
+
+```{r ampause_02_14, echo=T, eval = T, message=FALSE, warning=FALSE}
+#famps <- c(famps, "0")
+ldampaus <- ampaus %>%
+  dplyr::select(Variant, Adjective) %>%
+  dplyr::group_by(Variant) %>%
+  dplyr::summarise(Adjectivetypes = paste(names(table(Adjective)), 
+                                          sep = " ", collapse = " "),
+                   Adjectives = length(names(table(Adjective))),
+                   Frequency = n())
+ldscores <- ldampaus %>%
+  dplyr::mutate(LexicalDiversity = round(Adjectives/Frequency, 1)) %>%
+  dplyr::select(Variant, LexicalDiversity)
+ldampaus
+```
+
+Next, we extract LD values across apparent time.
+
 ```{r ampause_02_15, echo=T, eval = T, message=FALSE, warning=FALSE}
+famps <- c(famps, "0")
 ldampaus <- ampaus %>%
   dplyr::select(Age, Variant, Adjective) %>%
   dplyr::mutate(Variant = ifelse(Variant  %in% famps, Variant , "other")) %>%
@@ -159,7 +192,9 @@ ldampaus <- ampaus %>%
                    Frequency = n())
 ldscores <- ldampaus %>%
   dplyr::mutate(LexicalDiversity =round(Adjectives/Frequency, 1)) %>%
-  dplyr::select(Age, Variant, LexicalDiversity)
+  dplyr::select(-Adjectivetypes) %>%
+  dplyr::filter(Variant != "0")
+write.table(ldscores, "datatables/LD_results_wother.txt", row.names= F, sep = "\t")
 ldscores
 ```
 
@@ -199,6 +234,7 @@ Now, we perform a covarying collexeme analysis for really versus other amplfiers
 
 ```{r ampause_02_19, echo=T, eval = T, message=FALSE, warning=FALSE}
 ccla_really_aus <- ampaus %>%
+  dplyr::filter(Amplified == 1) %>%
   dplyr::select(Age, Variant, Adjective) %>%
   dplyr::mutate(really = ifelse(Variant == "really", 1, 0),
                 other = ifelse(Variant != "really", 1, 0))  %>%
@@ -259,6 +295,7 @@ Next, we perform the same covarying collexeme analysis for very versus other amp
 
 ```{r ampause_02_21, echo=T, eval = T, message=FALSE, warning=FALSE}
 ccla_very_aus <- ampaus %>%
+  dplyr::filter(Amplified == 1) %>%
   dplyr::select(Age, Variant, Adjective) %>%
   dplyr::mutate(very = ifelse(Variant == "very", 1, 0),
                 other = ifelse(Variant != "very", 1, 0))  %>%
@@ -319,6 +356,7 @@ Next, we perform the same covarying collexeme analysis for so versus other ampli
 
 ```{r ampause_02_23, echo=T, eval = T, message=FALSE, warning=FALSE}
 ccla_so_aus <- ampaus %>%
+  dplyr::filter(Amplified == 1) %>%
   dplyr::select(Age, Variant, Adjective) %>%
   dplyr::mutate(so = ifelse(Variant == "so", 1, 0),
                 other = ifelse(Variant != "so", 1, 0))  %>%
@@ -379,6 +417,7 @@ Next, we perform the same covarying collexeme analysis for pretty versus other a
 
 ```{r ampause_02_25, echo=T, eval = T, message=FALSE, warning=FALSE}
 ccla_pretty_aus <- ampaus %>%
+  dplyr::filter(Amplified == 1) %>%
   dplyr::select(Age, Variant, Adjective) %>%
   dplyr::mutate(pretty = ifelse(Variant == "pretty", 1, 0),
                 other = ifelse(Variant != "pretty", 1, 0))  %>%
@@ -440,6 +479,7 @@ Next, we perform the same covarying collexeme analysis for pretty versus other a
 
 ```{r ampause_02_27, echo=T, eval = T, message=FALSE, warning=FALSE}
 ccla_other_aus <- ampaus %>%
+  dplyr::filter(Amplified == 1) %>%
   dplyr::select(Age, Variant, Adjective) %>%
   dplyr::mutate(Variant = ifelse(Variant %in% famps, "other", "famps")) %>%
   dplyr::mutate(other = ifelse(Variant == "other", 1, 0),
@@ -511,26 +551,23 @@ colnames(ccla_other_aus) <- gsub("famps", "other", colnames(ccla_other_aus))
 ccla_ampaus <- rbind(ccla_really_aus, ccla_very_aus, 
                      ccla_so_aus, ccla_pretty_aus, ccla_other_aus)
 ccla_ampaus <- ccla_ampaus %>%
-  dplyr::filter(p < .05) %>%
   dplyr::arrange(Age)
 # inspect results
 ccla_ampaus
 ```
 
+```{r ampause_02_30, echo=T, eval = T, message=FALSE, warning=FALSE}
+ccla_ampaus_selection <- ccla_ampaus %>%
+  dplyr::filter(Freq_Adj > 10) %>%
+  dplyr::select(-Freq_Variant, -Freq_other, -x2, -expected)
+ccla_ampaus_selection
+```
+
 ```{r ampause_02_31, echo=T, eval = T, message=FALSE, warning=FALSE}
 library(tidyr)
-# by frequency
-#freqadj <- names(table(ampaus$Adjective))[which(table(ampaus$Adjective) > 50)]
-###
-# by significance
-#freqadj <- ccla_ampaus %>%
-#  dplyr::filter(CorrSignificance != "n.s.")
-#freqadj <- freqadj$Adjective
-# by effect size
-freqadj <- ccla_ampaus %>%
-  dplyr::filter(Freq_Adj > 20) %>%
-  dplyr::mutate(remove = ifelse(phi > 0.1, "keep",
-                                ifelse(phi < -0.1, "keep", "remove"))) %>%
+freqadj <- ccla_ampaus_selection %>%
+  dplyr::mutate(remove = ifelse(phi > 0.05, "keep", 
+                                ifelse(phi < -0.05, "keep", "remove"))) %>%
   dplyr::filter(remove != "remove") %>%
   dplyr::select(Adjective) %>%
   unique()
@@ -538,21 +575,19 @@ freqadj <- freqadj$Adjective
 freqadj
 ```
 
-
 ```{r ampause_02_33, echo=T, eval = T, message=FALSE, warning=FALSE}
-
 pd3 <- ccla_ampaus %>%
   dplyr::select(Age, Adjective, Variant, Type, phi) %>%
   dplyr::mutate(phi = ifelse(Type == "Antitype", -phi, phi)) %>%
   dplyr::select(-Type) %>%
   dplyr::filter(Adjective %in% freqadj) %>%
   tidyr::spread(Adjective, phi) %>%
-  tidyr::replace_na(list(funny = 0,
-                    good = 0,
-                    interesting = 0,
-                    little = 0,
-                    old = 0)) %>%
-  tidyr::gather(Adjective, phi, funny:old) %>%
+  tidyr::replace_na(list(bad = 0,
+                         funny = 0,
+                         hard = 0,
+                         good = 0,
+                         nice = 0)) %>%
+  tidyr::gather(Adjective, phi, bad:nice) %>%
   tidyr::spread(Variant, phi) %>%
   tidyr::replace_na(list(pretty = 0,
                     really = 0,
@@ -561,7 +596,6 @@ pd3 <- ccla_ampaus %>%
                     other = 0)) %>%
   tidyr::gather(Variant, phi, other:very)
 pd3
-
 ```
 
 
@@ -599,6 +633,7 @@ We now repeat the covarying collexeme analysis with all adjectives that did not 
 
 ```{r ampause_02_37, echo=T, eval = T, message=FALSE, warning=FALSE}
 ccla_really_aus <- ampaus %>%
+    dplyr::filter(Amplified == 1) %>%
   dplyr::select(Age, Variant, Adjective) %>%
   dplyr::mutate(Adjective = ifelse(Adjective %in% freqadj, Adjective, "other")) %>%
   dplyr::mutate(really = ifelse(Variant == "really", 1, 0),
@@ -660,6 +695,7 @@ Next, we perform the same covarying collexeme analysis for very versus other amp
 
 ```{r ampause_02_39, echo=T, eval = T, message=FALSE, warning=FALSE}
 ccla_very_aus <- ampaus %>%
+    dplyr::filter(Amplified == 1) %>%
   dplyr::select(Age, Variant, Adjective) %>%
     dplyr::mutate(Adjective = ifelse(Adjective %in% freqadj, Adjective, "other")) %>%
   dplyr::mutate(very = ifelse(Variant == "very", 1, 0),
@@ -721,6 +757,7 @@ Next, we perform the same covarying collexeme analysis for so versus other ampli
 
 ```{r ampause_02_41, echo=T, eval = T, message=FALSE, warning=FALSE}
 ccla_so_aus <- ampaus %>%
+    dplyr::filter(Amplified == 1) %>%
   dplyr::select(Age, Variant, Adjective) %>%
     dplyr::mutate(Adjective = ifelse(Adjective %in% freqadj, Adjective, "other")) %>%
   dplyr::mutate(so = ifelse(Variant == "so", 1, 0),
@@ -782,6 +819,7 @@ Next, we perform the same covarying collexeme analysis for pretty versus other a
 
 ```{r ampause_02_43, echo=T, eval = T, message=FALSE, warning=FALSE}
 ccla_pretty_aus <- ampaus %>%
+    dplyr::filter(Amplified == 1) %>%
   dplyr::select(Age, Variant, Adjective) %>%
     dplyr::mutate(Adjective = ifelse(Adjective %in% freqadj, Adjective, "other")) %>%
   dplyr::mutate(pretty = ifelse(Variant == "pretty", 1, 0),
@@ -844,6 +882,7 @@ Next, we perform the same covarying collexeme analysis for pretty versus other a
 
 ```{r ampause_02_45, echo=T, eval = T, message=FALSE, warning=FALSE}
 ccla_other_aus <- ampaus %>%
+    dplyr::filter(Amplified == 1) %>%
   dplyr::select(Age, Variant, Adjective) %>%
     dplyr::mutate(Adjective = ifelse(Adjective %in% freqadj, Adjective, "other")) %>%
   dplyr::mutate(Variant = ifelse(Variant %in% famps, "other", "famps")) %>%
@@ -916,8 +955,8 @@ colnames(ccla_other_aus) <- gsub("famps", "other", colnames(ccla_other_aus))
 ccla_ampaus <- rbind(ccla_really_aus, ccla_very_aus, 
                      ccla_so_aus, ccla_pretty_aus, ccla_other_aus)
 ccla_ampaus <- ccla_ampaus %>%
-  dplyr::filter(p < .05) %>%
-  dplyr::arrange(Age)
+  dplyr::arrange(Age, Variant, Adjective) %>%
+  dplyr::mutate(p = round(p, 4))
 # inspect results
 ccla_ampaus
 ```
@@ -929,13 +968,13 @@ pd4 <- ccla_ampaus %>%
   dplyr::mutate(phi = ifelse(Type == "Antitype", -phi, phi)) %>%
   dplyr::select(-Type) %>%
   tidyr::spread(Adjective, phi) %>%
-  tidyr::replace_na(list(funny = 0,
+  tidyr::replace_na(list(bad = 0,
+                    funny = 0,
                     good = 0,
-                    interesting = 0,
-                    little = 0,
-                    old = 0,
+                    hard = 0,
+                    nice = 0,
                     other = 0)) %>%
-  tidyr::gather(Adjective, phi, funny:other) %>%
+  tidyr::gather(Adjective, phi, bad:other) %>%
   tidyr::spread(Variant, phi) %>%
   tidyr::replace_na(list(pretty = 0,
                     really = 0,
@@ -975,11 +1014,17 @@ p4 <- ggplot(pd4, aes(x = reorder(Age, desc(Age)), y = phi, group = Variant,
   guides(size = FALSE)+
   guides(alpha = FALSE)+
   ggsave(file = paste(imageDirectory,"CCLA_final.png",sep="/"), 
-         width = 12, height = 10, units = c("cm"),  dpi = 320)
+         width = 15, height = 10, units = c("cm"),  dpi = 320)
 p4
 ```
 
 We will now tabulate the data.
+
+```{r ampause_02_52, echo=T, eval = T, message=FALSE, warning=FALSE}
+Table5 <- ccla_ampaus %>%
+  dplyr::filter(p <.05)
+write.table(Table5, "datatables/CCLA_results_wother.txt", row.names= F, sep = "\t")
+```
 
 ```{r ampause_02_53, echo=T, eval = T, message=FALSE, warning=FALSE}
 library(tibble)
